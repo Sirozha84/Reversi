@@ -1,3 +1,7 @@
+DECLARE SUB RedWindow (x1!, y1!, x2!, y2!)
+DECLARE SUB DrawTable (pl!)
+DECLARE SUB Benchmark ()
+DECLARE SUB Delay (s!)
 DECLARE FUNCTION WhoWin! (pass!)
 DECLARE SUB CandidatesCalc (pl!)
 DECLARE SUB Win (w!)
@@ -15,10 +19,10 @@ DECLARE SUB Init ()
 DECLARE SUB Load ()
 DECLARE SUB LoadGRP (m!(), file AS STRING, cn!, ln!)
 
-DIM SHARED kup$: kup$ = CHR$(0) + CHR$(75)
-DIM SHARED kdn$: kdn$ = CHR$(0) + CHR$(77)
-DIM SHARED klf$: klf$ = CHR$(0) + CHR$(80)
-DIM SHARED krt$: krt$ = CHR$(0) + CHR$(72)
+DIM SHARED kup$: kup$ = CHR$(0) + CHR$(72)
+DIM SHARED kdn$: kdn$ = CHR$(0) + CHR$(80)
+DIM SHARED klf$: klf$ = CHR$(0) + CHR$(75)
+DIM SHARED krt$: krt$ = CHR$(0) + CHR$(77)
 DIM SHARED ken$: ken$ = CHR$(13)
 DIM SHARED kes$: kes$ = CHR$(27)
 
@@ -43,12 +47,24 @@ DIM SHARED wd
 DIM SHARED hg
 DIM SHARED kx           'Курсор
 DIM SHARED ky
-DIM SHARED c(31, 31)    'Матрица для вычисления кодидатов
+DIM SHARED c(31, 31)    'Матрица для вычисления кандидатов
+DIM SHARED cicles       'Размер паузы
 
 Init
 level = 1
 size = 8
 NewGame
+
+SUB Benchmark
+    cicles = 0
+    t = TIMER
+    DO
+    LOOP UNTIL t <> TIMER
+    t = TIMER
+    DO
+        cicles = cicles + 1
+    LOOP UNTIL t <> TIMER
+END SUB
 
 'Вычисление матрицы кандидатов
 '0 - Если хода нет, 1 и более - количество "обращённых" противников
@@ -74,7 +90,7 @@ END SUB
 
 'Расчёт количества "обращённых" в клетке cx, cy
 'mx, my - направление
-'pl - игок
+'pl - игрок
 FUNCTION CellCheck (cx, cy, mx, my, pl)
     x = cx
     y = cy
@@ -102,6 +118,36 @@ SUB CellFill (cx, cy, mx, my, pl)
         y = cy + my * i
         m(x, y) = pl
     NEXT
+END SUB
+
+'Пауза в секундах
+SUB Delay (s)
+    FOR i = 0 TO s * cicles * 18
+        t = TIMER
+    NEXT
+END SUB
+
+'Перерисовка данных табло
+SUB DrawTable (pl)
+    k = 94 / size / size
+    COLOR 11
+    FOR i = 0 TO 1
+        p = 2 - i
+        s = FCount(1 + i)
+        a = FCount(2 - i)
+        LOCATE 14, 4 + i * 68
+        PRINT s
+        LOCATE 18, 4 + i * 68
+        PRINT s - a
+        x = i * 546
+        LINE (x, 28)-(x + 93, 41), 15, B
+        LINE (x, 28)-(x + s * k, 41), 11 - (1 + i), BF
+        LINE (x + s * k, 28)-(x + (s + a) * k, 41), 11 - (2 - i), BF
+    NEXT
+    COLOR 11 - move
+    LOCATE 1, 1
+    PRINT TAB(INT(41 - (LEN(pl(pl)) + 7) / 2));
+    PRINT "Ходит: " + pl(pl); TAB(80);
 END SUB
 
 'Подсчёт количества фишек
@@ -161,27 +207,10 @@ SUB Game (gr(), move)
     pass = 0
     endgame = 0
     DO
-
         'Обновляем табло
-        k = 94 / size / size
-        COLOR 11
-        FOR i = 0 TO 1
-            p = 2 - i
-            s = FCount(1 + i)
-            a = FCount(2 - i)
-            LOCATE 14, 4 + i * 68
-            PRINT s
-            LOCATE 18, 4 + i * 68
-            PRINT s - a
-            LINE (i * 546, 28)-(93 + i * 546, 41), 15, B
-            LINE (i * 546, 28)-(s * k + i * 546, 41), 11 - (1 + i), BF
-            LINE (s * k + i * 546, 28)-((s + a) * k + i * 546, 41), 11 - (2 - i), BF
-            
-        NEXT
-        COLOR 11 - move
-        LOCATE 1, 1
-        PRINT TAB(INT(41 - (LEN(pl(move)) + 7) / 2));
-        PRINT "Ходит: " + pl(move); TAB(80);
+        DrawTable move
+        
+
         LOCATE 2, 29
         COLOR 13
 
@@ -192,7 +221,7 @@ SUB Game (gr(), move)
             s = StepHuman(gr(), move)
         ELSE
             'Ход делает компьютер
-            PRINT " Пожалуйта, подождите..."
+            PRINT "Пожалуйста, подождите..."
             s = StepComputer(move)
         END IF
         IF s = 1 THEN pass = pass + 1 ELSE pass = 0 'Два пасса
@@ -219,14 +248,14 @@ SUB Game (gr(), move)
         move = 3 - move
 
     LOOP WHILE NOT endgame
-    IF w > 0 THEN LOCATE 15, 30: PRINT "Игра окончана"
-
+    IF w > 0 THEN LOCATE 15, 30: PRINT "Игра окончена"
 END SUB
+
 
 'Инициализация, загрузка файлов графики
 SUB Init
     SCREEN 9
-    CLS
+    Benchmark
     WINDOW (0, 0)-(639, 349)
     LoadGRP grf(), "f.grp", 2, 281
     LoadGRP grf8(), "f8.grp", 9, 281
@@ -243,7 +272,7 @@ END SUB
 'Загрузка спрайтов
 'm() - массив, содержащий спрайт
 'file - имя файла
-'cn - колиочество спрайтов
+'cn - количество спрайтов
 'ln - длина массива
 SUB LoadGRP (m(), file AS STRING, cn, ln)
     REDIM m(ln - 1, cn - 1)
@@ -272,7 +301,7 @@ SUB NewGame
     m(size / 2, size / 2 - 1) = 2
     m(size / 2 - 1, size / 2) = 2
 
-    'Поодготовка игроков
+    'Подготовка игроков
     pl(1) = "Сергей"
     pl(2) = "Computer+"
     move = 1
@@ -289,6 +318,13 @@ SUB NewGame
             Game grf32(), move
     END SELECT
 
+END SUB
+
+SUB RedWindow (x1, y1, x2, y2)
+    LINE (x1, y1)-(x2, y2), 13, B
+    LINE (x1 + 1, y1 + 1)-(x2 - 1, y2 - 1), 12, B
+    LINE (x1 + 2, y1 + 2)-(x2 - 2, y2 - 2), 4, B
+    LINE (x1 + 3, y1 + 3)-(x2 - 3, y2 - 3), 0, BF
 END SUB
 
 'Ход компьютера
@@ -387,10 +423,10 @@ FUNCTION StepHuman (gr(), pl)
         LOOP WHILE k$ = ""
     
         PUT (left + kx * wd, bott + ky * hg), gr(0, m(kx, ky)), PSET
-        IF k$ = kup$ AND kx > 0 THEN kx = kx - 1
-        IF k$ = kdn$ AND kx < size - 1 THEN kx = kx + 1
-        IF k$ = klf$ AND ky > 0 THEN ky = ky - 1
-        IF k$ = krt$ AND ky < size - 1 THEN ky = ky + 1
+        IF k$ = klf$ AND kx > 0 THEN kx = kx - 1
+        IF k$ = krt$ AND kx < size - 1 THEN kx = kx + 1
+        IF k$ = kdn$ AND ky > 0 THEN ky = ky - 1
+        IF k$ = kup$ AND ky < size - 1 THEN ky = ky + 1
         IF k$ = ken$ AND c(kx, ky) > 0 THEN
             StepEnd kx, ky, pl
             EXIT FUNCTION
@@ -401,23 +437,45 @@ FUNCTION StepHuman (gr(), pl)
         END IF
         IF k$ = kes$ THEN
             PCOPY 0, 1
-            LOCATE 15, 30: PRINT "Меню"
-            LOCATE 16, 30: PRINT "Esc - продолжить"
-            LOCATE 17, 30: PRINT "Enter - выход"
+            REDIM menu(2) AS STRING
+            menu(0) = " Продолжить (Esc)"
+            menu(1) = "Сохранить и выйти"
+            menu(2) = "      Выйти"
+            k = 0
+            FOR i = 1 TO 0 STEP -.1
+                RedWindow 150 + i * 170, 126 + i * 34, 489 - i * 170, 195 - i * 34
+                Delay .01
+            NEXT
             DO
-                k$ = INKEY$
-            LOOP WHILE k$ = ""
-            IF k$ = ken$ THEN
+            LOOP UNTIL INKEY$ = ""
+            DO
+                FOR i = 0 TO 2
+                    LOCATE 13 + i, 32
+                    COLOR 9
+                    IF k = i THEN COLOR 13
+                    PRINT menu(i)
+                NEXT
+                DO
+                    k$ = INKEY$
+                LOOP WHILE k$ = ""
+                IF k$ = kup$ THEN k = k - 1
+                IF k$ = kdn$ THEN k = k + 1
+                IF k < 0 THEN k = 2
+                IF k > 2 THEN k = 0
+                IF k$ = kes$ THEN k = 0: k$ = ken$
+            LOOP UNTIL k$ = ken$
+            PCOPY 1, 0
+            IF k = 2 THEN
                 StepHuman = 2
                 EXIT FUNCTION
             END IF
-            PCOPY 1, 0
+            
         END IF
-    LOOP WHILE 1 = 1
+    LOOP WHILE -1
 END FUNCTION
 
 'Определение победителя
-'0 - продолжаем играть                
+'0 - продолжаем играть               
 '1,2 - победа
 '3 - ничья
 FUNCTION WhoWin (pass)
