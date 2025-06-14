@@ -1,7 +1,9 @@
+DECLARE SUB DrawField (gr!())
+DECLARE SUB RedWindow (rows!)
+DECLARE FUNCTION InputName! (m!, pl!)
 DECLARE FUNCTION Menu! ()
 DECLARE SUB NewGame (lvl!, sz!)
 DECLARE FUNCTION MiniMenu! (menutype!)
-DECLARE SUB RedWindow (x1!, y1!, x2!, y2!)
 DECLARE SUB DrawTable (pl!)
 DECLARE SUB Benchmark ()
 DECLARE SUB Delay (s!)
@@ -25,6 +27,7 @@ DIM SHARED kup$: kup$ = CHR$(0) + CHR$(72)
 DIM SHARED kdn$: kdn$ = CHR$(0) + CHR$(80)
 DIM SHARED klf$: klf$ = CHR$(0) + CHR$(75)
 DIM SHARED krt$: krt$ = CHR$(0) + CHR$(77)
+DIM SHARED kbs$: kbs$ = CHR$(8)
 DIM SHARED ken$: ken$ = CHR$(13)
 DIM SHARED kes$: kes$ = CHR$(27)
 
@@ -38,6 +41,8 @@ REDIM SHARED gra(0, 0)  'Стрелки меню         46*24*11
 REDIM SHARED grn(0, 0)  'Буквы названия       46*46*7
 REDIM SHARED grp(0, 0)  'Полоса прокрутки     20*16*6
 REDIM SHARED grt(0, 0)  'Табло                94*322*1
+
+DIM SHARED FirstPlayer: FirstPlayer = 1
 
 DIM SHARED m(31, 31)    'Игровое поле
 DIM SHARED level        'Уровень сложности
@@ -129,6 +134,39 @@ SUB Delay (s)
     NEXT
 END SUB
 
+SUB DrawField (gr())
+
+    'Рисуем панели
+    SCREEN 9, 0, 1, 0
+    CLS
+    LOCATE 25, 29
+    COLOR 7
+    PRINT "Пробел - пас, Esc - меню"
+    FOR i = -226 TO 544 STEP 2
+        LINE (i, 14)-(i + 321, 335), 8
+    NEXT
+    FOR i = 0 TO 1
+        PUT (i * 546, 14), grt(0, 0), PSET
+        PUT (27 + i * 546, 277), grf(0, i), PSET
+    NEXT
+
+    COLOR 14
+    FOR i = 0 TO 1
+        LOCATE 9, 7 + i * 68 - LEN(pl(i + 1)) / 2
+        PRINT pl(i + 1)
+    NEXT
+
+    'Рисуем поле
+    FOR x = 0 TO size - 1
+        FOR y = 0 TO size - 1
+            PUT (left + x * wd, bott + y * hg), gr(0, m(x, y)), PSET
+        NEXT
+    NEXT
+    SCREEN 9, 0, 0, 0
+    PCOPY 1, 0
+
+END SUB
+
 'Перерисовка данных табло
 SUB DrawTable (pl)
     k = 94 / size / size
@@ -185,31 +223,7 @@ SUB Game (gr(), move)
             hg = 10
     END SELECT
 
-    'Рисуем панели
-    CLS
-    LOCATE 25, 29
-    COLOR 7
-    PRINT "Пробел - пас, Esc - меню"
-    FOR i = -226 TO 544 STEP 2
-        LINE (i, 14)-(i + 321, 335), 8
-    NEXT
-    FOR i = 0 TO 1
-        PUT (i * 546, 14), grt(0, 0), PSET
-        PUT (27 + i * 546, 277), grf(0, i), PSET
-    NEXT
-    
-    COLOR 14
-    FOR i = 0 TO 1
-        LOCATE 9, 7 + i * 68 - LEN(pl(i + 1)) / 2
-        PRINT pl(i + 1)
-    NEXT
-
-    'Рисуем поле
-    FOR x = 0 TO size - 1
-        FOR y = 0 TO size - 1
-            PUT (left + x * wd, bott + y * hg), gr(0, m(x, y)), PSET
-        NEXT
-    NEXT
+    DrawField gr()
 
     'Игровой цикл
     DIM nm(size - 1, size - 1)
@@ -270,6 +284,91 @@ SUB Init
     kmm = 6
 END SUB
 
+FUNCTION InputName (m, pl)
+    RedWindow 7
+    PUT (300, 186), grf(0, pl - 1), PSET
+    LOCATE 13, 26
+    COLOR 11
+    IF m = 1 THEN
+        PRINT "       Введите своё имя"
+    ELSE
+        IF pl = 1 THEN
+            PRINT "Первый";
+        ELSE
+            PRINT "Второй";
+        END IF
+        PRINT " игрок, введите своё имя"
+    END IF
+    LOCATE 15, 27
+    COLOR 1
+    PRINT "█  █  █  █  █  █  █  █  █  █";
+    k = 0
+    DIM l$(9)
+    a = 0
+    DO
+        DO
+            FOR i = 0 TO k - 1
+                LOCATE 15, 27 + i * 3
+                SELECT CASE INT(a + i) MOD 4
+                    CASE 0: COLOR 2
+                    CASE 1: COLOR 2
+                    CASE 2: COLOR 10
+                    CASE 3: COLOR 10
+                END SELECT
+                PRINT l$(i)
+            NEXT
+            SELECT CASE INT(a)
+                CASE 0: COLOR 0
+                CASE 1: COLOR 5
+                CASE 2: COLOR 13
+                CASE 3: COLOR 5
+            END SELECT
+            c = k
+            IF c > 9 THEN c = 9
+            LOCATE 14, 25 + c * 3
+            PRINT "┌───┐"
+            LOCATE 16, 25 + c * 3
+            PRINT "└───┘"
+            a = a + .2
+            IF a >= 4 THEN a = 0
+            k$ = INKEY$
+            Delay .01
+        LOOP WHILE k$ = ""
+        LOCATE 14, 25 + k * 3
+        PRINT "     "
+        LOCATE 16, 25 + k * 3
+        PRINT "     "
+        IF (k$ >= "a" AND k$ <= "z") OR (k$ >= "A" AND k$ <= "Z") THEN
+            l$(c) = k$
+            k = k + 1
+            IF k > 10 THEN k = 10
+        END IF
+        IF k$ = kbs$ THEN
+            k = k - 1
+            IF k < 0 THEN k = 0
+            LOCATE 15, 27 + k * 3
+            COLOR 1
+            PRINT "█"
+        END IF
+        IF k$ = kes$ THEN
+            k = -1
+            k$ = ken$
+        END IF
+    LOOP UNTIL k$ = ken$
+    PCOPY 1, 0
+    IF k > 0 THEN
+        pl(pl) = ""
+        FOR i = 0 TO k - 1
+            pl(pl) = pl(pl) + l$(i)
+        NEXT
+        InputName = 0
+    ELSEIF k = 0 THEN
+        pl(pl) = "Player" + STR$(pl)
+    ELSE
+        InputName = -1
+    END IF
+END FUNCTION
+
 'Загрузка спрайтов
 'm() - массив, содержащий спрайт
 'file - имя файла
@@ -296,6 +395,7 @@ FUNCTION Menu
     COLOR 15
     FOR i = 0 TO 6
         PUT (27 + i * 90, 280), grn(0, i), PSET
+        '+ SIN(i + a / 5 * 3.14 * 2) * 10 - забавно, но слишком "весело"
     NEXT
 
     FOR i = 0 TO 9
@@ -312,6 +412,9 @@ FUNCTION Menu
     DO
         PUT (140, 22 + kmm * 30), gra(0, INT(a)), PSET
         PUT (453, 22 + kmm * 30), gra(0, INT(a) + 5), PSET
+        a = a + .2
+        IF a >= 5 THEN a = 0
+        Delay .01
         k$ = INKEY$
         IF k$ <> "" THEN
             LINE (140, 22 + kmm * 30)-(185, 45 + kmm * 30), 7, BF
@@ -321,9 +424,7 @@ FUNCTION Menu
         IF k$ = kdn$ THEN kmm = kmm - 1
         IF kmm > 6 THEN kmm = 0
         IF kmm < 0 THEN kmm = 6
-        a = a + .2
-        IF a >= 5 THEN a = 0
-        Delay .01
+        IF k$ = kes$ THEN k$ = ken$: kmm = 0
     LOOP UNTIL k$ = ken$
     PUT (220, 22 + kmm * 30), grk(0, kmm + 7), PSET
     Delay .15
@@ -332,7 +433,9 @@ FUNCTION Menu
 
     'Новая игра
     IF kmm = 6 THEN
-        k = MiniMenu(1)
+        pl(3 - FirstPlayer) = "Computer"
+        k = InputName(1, FirstPlayer)
+        IF k <> -1 THEN k = MiniMenu(1)
         IF k <> -1 THEN
             s = 8
             IF k = 1 THEN s = 16
@@ -348,7 +451,9 @@ FUNCTION Menu
 
     'Новая игра для двух игроков
     IF kmm = 5 THEN
-        k = MiniMenu(1)
+        k = InputName(2, 1)
+        IF k <> -1 THEN k = InputName(2, 2)
+        IF k <> -1 THEN k = MiniMenu(1)
         IF k <> -1 THEN
             s = 8
             IF k = 1 THEN s = 16
@@ -373,15 +478,15 @@ FUNCTION MiniMenu (menutype)
             ex = 0
         CASE 1
             tit$ = "   Выберите размер поля"
-            p(0) = "       8x8"
-            p(1) = "      16x16"
-            p(2) = "      32x32"
+            p(0) = "      8 x 8"
+            p(1) = "     16 x 16"
+            p(2) = "     32 x 32"
             max = 2
             ex = -1
         CASE 2
             tit$ = "Выберите уровень сложности"
-            p(0) = "    Нормальная"
-            p(1) = "     Сложная"
+            p(0) = "    Нормальный"
+            p(1) = "     Сложный"
             max = 1
             ex = -1
     END SELECT
@@ -389,21 +494,14 @@ FUNCTION MiniMenu (menutype)
     sh = 0
     IF tit$ <> "" THEN sh = 1   'Сдвиг, если есть тайтл
     rows = rows + sh
+    RedWindow rows
     top = 13 - INT(rows / 2)
-    x = 150
-    y = 350 - (top + rows - 1) * 14 - 7
-    h = (rows) * 14 - 1 + 14
-    PCOPY 0, 1
-    FOR i = 1 TO -.01 STEP -.1
-        RedWindow x + i * 170, y + i * h / 2, 639 - x - i * 170, y + h - i * h / 2
-        Delay .01
-    NEXT
     DO
     LOOP UNTIL INKEY$ = ""
     k = 0
     DO
         LOCATE top, 28
-        COLOR 9
+        COLOR 11
         PRINT tit$
         FOR i = 0 TO max
             LOCATE top + i + sh, 32
@@ -442,8 +540,6 @@ SUB NewGame (lvl, sz)
     m(size / 2 - 1, size / 2) = 2
 
     'Поодготовка игроков
-    pl(1) = "Сергей"
-    pl(2) = "Computer"
     move = 1
     kx = size / 2 - 2
     ky = size / 2
@@ -460,11 +556,23 @@ SUB NewGame (lvl, sz)
 
 END SUB
 
-SUB RedWindow (x1, y1, x2, y2)
-    LINE (x1, y1)-(x2, y2), 13, B
-    LINE (x1 + 1, y1 + 1)-(x2 - 1, y2 - 1), 12, B
-    LINE (x1 + 2, y1 + 2)-(x2 - 2, y2 - 2), 4, B
-    LINE (x1 + 3, y1 + 3)-(x2 - 3, y2 - 3), 0, BF
+SUB RedWindow (rows)
+    top = 13 - INT(rows / 2)
+    x = 150
+    y = 350 - (top + rows - 1) * 14 - 7
+    h = (rows) * 14 - 1 + 14
+    PCOPY 0, 1
+    FOR i = 1 TO -.01 STEP -.1
+        x1 = x + i * 170
+        y1 = y + i * h / 2
+        x2 = 639 - x - i * 170
+        y2 = y + h - i * h / 2
+        LINE (x1, y1)-(x2, y2), 13, B
+        LINE (x1 + 1, y1 + 1)-(x2 - 1, y2 - 1), 12, B
+        LINE (x1 + 2, y1 + 2)-(x2 - 2, y2 - 2), 4, B
+        LINE (x1 + 3, y1 + 3)-(x2 - 3, y2 - 3), 0, BF
+        Delay .01
+    NEXT
 END SUB
 
 'Ход компьютера
@@ -591,7 +699,7 @@ FUNCTION StepHuman (gr(), pl)
 END FUNCTION
 
 'Определение победителя
-'0 - продолжаем играть        
+'0 - продолжаем играть  
 '1,2 - победа
 '3 - ничья
 FUNCTION WhoWin (pass)
