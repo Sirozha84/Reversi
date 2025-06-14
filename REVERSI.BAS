@@ -146,7 +146,10 @@ SUB DrawTable (pl)
         LINE (x, 42)-(x + s * k, 55), 11 - (1 + i), BF
         LINE (x + s * k, 42)-(x + (s + a) * k, 55), 11 - (2 - i), BF
     NEXT
-    COLOR 11 - move
+    COLOR 11 - pl
+    LOCATE 1, 1
+    PRINT TAB(INT(41 - (LEN(pl(pl)) + 7) / 2));
+    PRINT "Ходит: " + pl(pl); TAB(80);
 END SUB
 
 'Подсчёт количества фишек
@@ -187,8 +190,8 @@ SUB Game (gr(), move)
     LOCATE 25, 29
     COLOR 7
     PRINT "Пробел - пас, Esc - меню"
-    FOR i = -348 TO 638 STEP 2
-        LINE (i, 0)-(i + 349, 349), 8
+    FOR i = -226 TO 544 STEP 2
+        LINE (i, 14)-(i + 321, 335), 8
     NEXT
     FOR i = 0 TO 1
         PUT (i * 546, 14), grt(0, 0), PSET
@@ -218,12 +221,8 @@ SUB Game (gr(), move)
 
         'Определяем, кто сейчас ходит
         IF pl(move) <> "Computer" THEN
-            'Ход делает человек
-            'PRINT "Пробел - пас, Esc - меню"
             s = StepHuman(gr(), move)
         ELSE
-            'Ход делает компьютер
-            'PRINT " Пожалуйта, подождите..."
             s = StepComputer(move)
         END IF
         IF s = 1 THEN pass = pass + 1 ELSE pass = 0 'Два пасса
@@ -314,7 +313,7 @@ FUNCTION Menu
         PUT (140, 22 + kmm * 30), gra(0, INT(a)), PSET
         PUT (453, 22 + kmm * 30), gra(0, INT(a) + 5), PSET
         k$ = INKEY$
-        IF k$ = kup$ OR k$ = kdn$ THEN
+        IF k$ <> "" THEN
             LINE (140, 22 + kmm * 30)-(185, 45 + kmm * 30), 7, BF
             LINE (453, 22 + kmm * 30)-(498, 45 + kmm * 30), 7, BF
         END IF
@@ -327,12 +326,37 @@ FUNCTION Menu
         Delay .01
     LOOP UNTIL k$ = ken$
     PUT (220, 22 + kmm * 30), grk(0, kmm + 7), PSET
-    Delay .25
+    Delay .15
     PUT (220, 22 + kmm * 30), grk(0, kmm), PSET
+    Delay .15
 
     'Новая игра
     IF kmm = 6 THEN
-        NewGame 1, 32
+        k = MiniMenu(1)
+        IF k <> -1 THEN
+            s = 8
+            IF k = 1 THEN s = 16
+            IF k = 2 THEN s = 32
+            k = MiniMenu(2)
+        END IF
+        IF k <> -1 THEN
+            l = 0
+            IF k = 1 THEN l = 1
+            NewGame l, s
+        END IF
+    END IF
+
+    'Новая игра для двух игроков
+    IF kmm = 5 THEN
+        k = MiniMenu(1)
+        IF k <> -1 THEN
+            s = 8
+            IF k = 1 THEN s = 16
+            IF k = 2 THEN s = 32
+
+
+            NewGame l, s
+        END IF
     END IF
 
     Menu = (kmm = 0)
@@ -342,17 +366,35 @@ FUNCTION MiniMenu (menutype)
     DIM p(20) AS STRING
     SELECT CASE menutype
         CASE 0
-            max = 2
             p(0) = " Продолжить (Esc)"
             p(1) = "Сохранить и выйти"
             p(2) = "      Выйти"
+            max = 2
+            ex = 0
+        CASE 1
+            tit$ = "   Выберите размер поля"
+            p(0) = "       8x8"
+            p(1) = "      16x16"
+            p(2) = "      32x32"
+            max = 2
+            ex = -1
+        CASE 2
+            tit$ = "Выберите уровень сложности"
+            p(0) = "    Нормальная"
+            p(1) = "     Сложная"
+            max = 1
+            ex = -1
     END SELECT
-    top = 13 - INT((max + 1) / 2)
+    rows = max + 1
+    sh = 0
+    IF tit$ <> "" THEN sh = 1   'Сдвиг, если есть тайтл
+    rows = rows + sh
+    top = 13 - INT(rows / 2)
     x = 150
-    y = 350 - (top + 2) * 14 - 7
-    h = (max + 1) * 14 + 13
+    y = 350 - (top + rows - 1) * 14 - 7
+    h = (rows) * 14 - 1 + 14
     PCOPY 0, 1
-    FOR i = 1 TO 0 STEP -.1
+    FOR i = 1 TO -.01 STEP -.1
         RedWindow x + i * 170, y + i * h / 2, 639 - x - i * 170, y + h - i * h / 2
         Delay .01
     NEXT
@@ -360,8 +402,11 @@ FUNCTION MiniMenu (menutype)
     LOOP UNTIL INKEY$ = ""
     k = 0
     DO
+        LOCATE top, 28
+        COLOR 9
+        PRINT tit$
         FOR i = 0 TO max
-            LOCATE top + i, 32
+            LOCATE top + i + sh, 32
             COLOR 9
             IF k = i THEN COLOR 13
             PRINT p(i)
@@ -373,7 +418,7 @@ FUNCTION MiniMenu (menutype)
         IF k$ = kdn$ THEN k = k + 1
         IF k < 0 THEN k = max
         IF k > max THEN k = 0
-        IF k$ = kes$ THEN k = 0: k$ = ken$
+        IF k$ = kes$ THEN k = ex: k$ = ken$
     LOOP UNTIL k$ = ken$
     PCOPY 1, 0
     MiniMenu = k
@@ -398,7 +443,7 @@ SUB NewGame (lvl, sz)
 
     'Поодготовка игроков
     pl(1) = "Сергей"
-    pl(2) = "Computer+"
+    pl(2) = "Computer"
     move = 1
     kx = size / 2 - 2
     ky = size / 2
@@ -546,7 +591,7 @@ FUNCTION StepHuman (gr(), pl)
 END FUNCTION
 
 'Определение победителя
-'0 - продолжаем играть             
+'0 - продолжаем играть        
 '1,2 - победа
 '3 - ничья
 FUNCTION WhoWin (pass)
