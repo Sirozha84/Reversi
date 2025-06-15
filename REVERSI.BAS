@@ -1,5 +1,8 @@
-DECLARE SUB DrawField (gr!())
+DECLARE FUNCTION ScoreString$ (h!, i!)
+DECLARE FUNCTION ScoreColor! (i!)
 DECLARE SUB RedWindow (rows!)
+DECLARE SUB Win (w!)
+DECLARE SUB DrawField (gr!())
 DECLARE FUNCTION InputName! (m!, pl!)
 DECLARE FUNCTION Menu! ()
 DECLARE SUB NewGame (lvl!, sz!)
@@ -9,7 +12,6 @@ DECLARE SUB Benchmark ()
 DECLARE SUB Delay (s!)
 DECLARE FUNCTION WhoWin! (pass!)
 DECLARE SUB CandidatesCalc (pl!)
-DECLARE SUB Win (w!)
 DECLARE FUNCTION FCount! (pl!)
 DECLARE SUB Game (gr!(), move!)
 DECLARE FUNCTION StepComputer! (pl!)
@@ -42,12 +44,16 @@ REDIM SHARED grn(0, 0)  'Буквы названия       46*46*7
 REDIM SHARED grp(0, 0)  'Полоса прокрутки     20*16*6
 REDIM SHARED grt(0, 0)  'Табло                94*322*1
 
-DIM SHARED FirstPlayer: FirstPlayer = 1
+DIM SHARED HiScores(5, 10) AS STRING
+
+DIM SHARED FirstPlayer
 
 DIM SHARED m(31, 31)    'Игровое поле
+DIM SHARED nm(31, 31)
 DIM SHARED level        'Уровень сложности
 DIM SHARED size         'Размер
-DIM SHARED pl(2) AS STRING   'Имена игроков
+DIM SHARED pl(1) AS STRING   'Имена игроков
+DIM SHARED score(1)     'Очки (отрыв)
 DIM SHARED left
 DIM SHARED bott
 DIM SHARED wd
@@ -57,8 +63,15 @@ DIM SHARED ky
 DIM SHARED c(31, 31)    'Матрица для вычисления кодидатов
 DIM SHARED cicles       'Размер паузы
 DIM SHARED kmm          'Курсор главного меню
+        
 
 Init
+
+'pl(0) = "Sirozha"
+'pl(1) = "Computer"
+'NewGame 1, 8: END
+
+
 DO
 LOOP UNTIL Menu
 
@@ -78,7 +91,7 @@ END SUB
 SUB CandidatesCalc (pl)
     FOR x = 0 TO size - 1
         FOR y = 0 TO size - 1
-            IF m(x, y) <> 0 THEN
+            IF m(x, y) <> -1 THEN
                 c(x, y) = 0
             ELSE
                 c = CellCheck(x, y, 0, 1, pl)
@@ -101,7 +114,7 @@ END SUB
 FUNCTION CellCheck (cx, cy, mx, my, pl)
     x = cx
     y = cy
-    pr = 3 - pl
+    pr = 1 - pl
     c = 0
     ex = 0
     DO
@@ -110,7 +123,7 @@ FUNCTION CellCheck (cx, cy, mx, my, pl)
         IF x < 0 OR y < 0 OR x > size - 1 OR y > size - 1 THEN
             ex = -1
         ELSE
-            IF m(x, y) = 0 THEN EXIT FUNCTION
+            IF m(x, y) = -1 THEN EXIT FUNCTION
             IF m(x, y) = pr THEN c = c + 1
             IF m(x, y) = pl THEN CellCheck = c: EXIT FUNCTION
         END IF
@@ -152,14 +165,14 @@ SUB DrawField (gr())
 
     COLOR 14
     FOR i = 0 TO 1
-        LOCATE 9, 7 + i * 68 - LEN(pl(i + 1)) / 2
-        PRINT pl(i + 1)
+        LOCATE 9, 7 + i * 68 - LEN(pl(i)) / 2
+        PRINT pl(i)
     NEXT
 
     'Рисуем поле
     FOR x = 0 TO size - 1
         FOR y = 0 TO size - 1
-            PUT (left + x * wd, bott + y * hg), gr(0, m(x, y)), PSET
+            PUT (left + x * wd, bott + y * hg), gr(0, m(x, y) + 1), PSET
         NEXT
     NEXT
     SCREEN 9, 0, 0, 0
@@ -172,19 +185,20 @@ SUB DrawTable (pl)
     k = 94 / size / size
     COLOR 11
     FOR i = 0 TO 1
-        p = 2 - i
-        s = FCount(1 + i)
-        a = FCount(2 - i)
+        p = 1 - i
+        s = FCount(i)
+        a = FCount(1 - i)
         LOCATE 13, 4 + i * 68
         PRINT s
         LOCATE 17, 4 + i * 68
-        PRINT s - a
+        score(i) = s - a
+        PRINT score(i)
         x = i * 546
         LINE (x, 42)-(x + 93, 55), 15, B
         LINE (x, 42)-(x + s * k, 55), 11 - (1 + i), BF
         LINE (x + s * k, 42)-(x + (s + a) * k, 55), 11 - (2 - i), BF
     NEXT
-    COLOR 11 - pl
+    COLOR 10 - pl
     LOCATE 1, 1
     PRINT TAB(INT(41 - (LEN(pl(pl)) + 7) / 2));
     PRINT "Ходит: " + pl(pl); TAB(80);
@@ -226,7 +240,6 @@ SUB Game (gr(), move)
     DrawField gr()
 
     'Игровой цикл
-    DIM nm(size - 1, size - 1)
     pass = 0
     endgame = 0
     DO
@@ -247,23 +260,23 @@ SUB Game (gr(), move)
             FOR y = 0 TO size - 1
                 IF first OR nm(x, y) <> m(x, y) THEN
                     nm(x, y) = m(x, y)
-                    PUT (left + x * wd, bott + y * hg), gr(0, m(x, y)), PSET
+                    PUT (left + x * wd, bott + y * hg), gr(0, m(x, y) + 1), PSET
                 END IF
             NEXT
         NEXT
         
         'Определяем, есть ли победа
         w = WhoWin(pass > 1)
-        IF w > 0 THEN
+        IF w <> 2 THEN
+            DrawTable move
             Win (w)
             endgame = -1
         END IF
 
         'Переход хода
-        move = 3 - move
+        move = 1 - move
 
     LOOP WHILE NOT endgame
-    IF w > 0 THEN LOCATE 15, 30: PRINT "Игра окончана"
 END SUB
 
 'Инициализация, загрузка файлов графики
@@ -281,12 +294,21 @@ SUB Init
     LoadGRP grn(), "name.grp", 7, 277
     LoadGRP grp(), "prok.grp", 6, 49
     LoadGRP grt(), "tab.grp", 1, 3865
+
+    FirstPlayer = 0
+
+    FOR i = 0 TO 5
+        FOR j = 0 TO 9
+            HiScores(i, j) = "......................................."
+        NEXT
+    NEXT
+
     kmm = 6
 END SUB
 
 FUNCTION InputName (m, pl)
     RedWindow 7
-    PUT (300, 186), grf(0, pl - 1), PSET
+    PUT (300, 186), grf(0, pl), PSET
     LOCATE 13, 26
     COLOR 11
     IF m = 1 THEN
@@ -409,6 +431,7 @@ FUNCTION Menu
     FOR i = 0 TO 6
         PUT (220, 22 + i * 30), grk(0, i), PSET
     NEXT
+    DO: LOOP UNTIL INKEY$ = ""
     DO
         PUT (140, 22 + kmm * 30), gra(0, INT(a)), PSET
         PUT (453, 22 + kmm * 30), gra(0, INT(a) + 5), PSET
@@ -433,7 +456,7 @@ FUNCTION Menu
 
     'Новая игра
     IF kmm = 6 THEN
-        pl(3 - FirstPlayer) = "Computer"
+        pl(1 - FirstPlayer) = "Computer"
         k = InputName(1, FirstPlayer)
         IF k <> -1 THEN k = MiniMenu(1)
         IF k <> -1 THEN
@@ -451,8 +474,8 @@ FUNCTION Menu
 
     'Новая игра для двух игроков
     IF kmm = 5 THEN
-        k = InputName(2, 1)
-        IF k <> -1 THEN k = InputName(2, 2)
+        k = InputName(2, 0)
+        IF k <> -1 THEN k = InputName(2, 1)
         IF k <> -1 THEN k = MiniMenu(1)
         IF k <> -1 THEN
             s = 8
@@ -531,16 +554,21 @@ SUB NewGame (lvl, sz)
     'Подготовка поля
     FOR x = 0 TO size - 1
         FOR y = 0 TO size - 1
-            m(x, y) = 0
+            m(x, y) = -1
         NEXT
     NEXT
-    m(size / 2, size / 2) = 1
-    m(size / 2 - 1, size / 2 - 1) = 1
-    m(size / 2, size / 2 - 1) = 2
-    m(size / 2 - 1, size / 2) = 2
+    m(size / 2, size / 2) = 0
+    m(size / 2 - 1, size / 2 - 1) = 0
+    m(size / 2, size / 2 - 1) = 1
+    m(size / 2 - 1, size / 2) = 1
+    FOR x = 0 TO size - 1
+        FOR y = 0 TO size - 1
+            nm(x, y) = m(x, y)
+        NEXT
+    NEXT
 
     'Поодготовка игроков
-    move = 1
+    move = 0
     kx = size / 2 - 2
     ky = size / 2
 
@@ -558,7 +586,7 @@ END SUB
 
 SUB RedWindow (rows)
     top = 13 - INT(rows / 2)
-    x = 150
+    x = 140
     y = 350 - (top + rows - 1) * 14 - 7
     h = (rows) * 14 - 1 + 14
     PCOPY 0, 1
@@ -575,6 +603,22 @@ SUB RedWindow (rows)
     NEXT
 END SUB
 
+FUNCTION ScoreColor (i)
+    SELECT CASE i
+        CASE 0: ScoreColor = 12
+        CASE 1 TO 2: ScoreColor = 14
+        CASE 3 TO 4: ScoreColor = 10
+        CASE 5 TO 9: ScoreColor = 9
+    END SELECT
+END FUNCTION
+
+FUNCTION ScoreString$ (h, i)
+    s$ = STR$(i + 1)
+    IF i = 9 THEN s$ = "10"
+    s$ = s$ + "." + HiScores(h, i)
+    ScoreString = s$
+END FUNCTION
+
 'Ход компьютера
 '0 - ход сделан
 '1 - пас
@@ -583,7 +627,7 @@ FUNCTION StepComputer (pl)
     CandidatesCalc pl
 
     'Надо узнать не является ли какой-то ход решающим
-    ac = FCount(3 - pl)
+    ac = FCount(1 - pl)
     FOR x = 0 TO size - 1
         FOR y = 0 TO size - 1
             IF c(x, y) = ac THEN c(x, y) = 99
@@ -627,6 +671,14 @@ FUNCTION StepComputer (pl)
         NEXT
     NEXT
 
+    'Отладочное - просмотр всех вариаций
+    'FOR x = 0 TO size - 1
+    '    FOR y = 0 TO size - 1
+    '        LOCATE 8 - y, (x + 1) * 3: PRINT c(x, y)
+    '    NEXT
+    'NEXT
+    'SLEEP 0
+
     'Делаем ход, или пасуем
     IF max > 0 THEN
         s = INT(RND * n)
@@ -661,16 +713,16 @@ FUNCTION StepHuman (gr(), pl)
 
         IF c(kx, ky) > 0 THEN
             PUT (x, y), gr(0, 5), AND
-            PUT (x, y), gr(0, 2 + pl), XOR
+            PUT (x, y), gr(0, 3 + pl), XOR
         ELSE
             PUT (x, y), gr(0, 8), AND
-            PUT (x, y), gr(0, 5 + pl), XOR
+            PUT (x, y), gr(0, 6 + pl), XOR
         END IF
         DO
             k$ = INKEY$
         LOOP WHILE k$ = ""
     
-        PUT (left + kx * wd, bott + ky * hg), gr(0, m(kx, ky)), PSET
+        PUT (left + kx * wd, bott + ky * hg), gr(0, m(kx, ky) + 1), PSET
         IF k$ = klf$ AND kx > 0 THEN kx = kx - 1
         IF k$ = krt$ AND kx < size - 1 THEN kx = kx + 1
         IF k$ = kdn$ AND ky > 0 THEN ky = ky - 1
@@ -699,8 +751,8 @@ FUNCTION StepHuman (gr(), pl)
 END FUNCTION
 
 'Определение победителя
-'0 - продолжаем играть  
-'1,2 - победа
+'0,1 - победа
+'2 - продолжаем играть
 '3 - ничья
 FUNCTION WhoWin (pass)
     p = 0
@@ -708,26 +760,98 @@ FUNCTION WhoWin (pass)
     p2 = 0
     FOR x = 0 TO size - 1
         FOR y = 0 TO size - 1
-            IF m(x, y) = 0 THEN p = 1
+            IF m(x, y) = -1 THEN p = 1
+            IF m(x, y) = 0 THEN p0 = p0 + 1
             IF m(x, y) = 1 THEN p1 = p1 + 1
-            IF m(x, y) = 2 THEN p2 = p2 + 1
         NEXT
     NEXT
-    IF p = 0 OR p1 = 0 OR p2 = 0 OR pass THEN
+    IF p = 0 OR p0 = 0 OR p1 = 0 OR pass THEN
         WhoWin = 3
-        IF p1 > p2 THEN WhoWin = 1
-        IF p2 > p1 THEN WhoWin = 2
+        IF p0 > p1 THEN WhoWin = 0
+        IF p1 > p0 THEN WhoWin = 1
     ELSE
-        WhoWin = 0
+        WhoWin = 2
     END IF
 END FUNCTION
 
 SUB Win (w)
-    LOCATE 13, 30
+
+    RedWindow 5
+    COLOR 11
     IF w = 3 THEN
+        PUT (199, 158), grf(0, 0), PSET
+        PUT (400, 158), grf(0, 1), PSET
+        LOCATE 13, 38
         PRINT "Ничья!"
     ELSE
-        PRINT "Победил: "; pl(w)
+        PUT (300, 172), grf(0, w), PSET
+        
+        t$ = "Победил " + pl(w) + "!"
+        LOCATE 14, 41 - LEN(t$) / 2
+        PRINT t$
     END IF
+    DO: LOOP UNTIL INKEY$ = ""
+    DO: LOOP UNTIL INKEY$ <> ""
+
+    'Если игра была не с компьютером - в таблицу не попадаем
+    IF pl(0) <> "Computer" AND pl(1) <> "Computer" THEN EXIT SUB
+
+    'Определяем в какую таблицу рекдордов мы попадаем
+    h = 0
+    IF size = 16 THEN h = 1
+    IF size = 32 THEN h = 2
+    h = h + level * 3
+
+    'Определяем место
+    sc = score(FirstPlayer)
+    m = -1
+    FOR i = 0 TO 9
+        s$ = MID$(HiScores(h, i), 13, 5)
+        s = VAL(s$)
+        IF s$ = "....." THEN s = -9999
+        IF sc > s THEN m = i: EXIT FOR
+    NEXT
+    IF m >= 0 THEN
+        FOR i = 9 TO m + 1 STEP -1
+            HiScores(h, i) = HiScores(h, i - 1)
+        NEXT
+        s$ = pl(FirstPlayer)
+        DO
+            s$ = s$ + "."
+        LOOP UNTIL LEN(s$) = 12
+        s$ = s$ + STR$(sc)
+        DO
+            s$ = s$ + "."
+        LOOP UNTIL LEN(s$) = 19
+        s$ = s$ + DATE$ + ".." + TIME$
+
+        HiScores(h, m) = s$
+    END IF
+
+    RedWindow 11
+    LOCATE 8, 37
+    PRINT "Рекорды"
+    FOR i = 0 TO 9
+        LOCATE 9 + i, 20
+        COLOR ScoreColor(i)
+        PRINT ScoreString(h, i)
+    NEXT
+    a = 0
+    DO
+        IF m > -1 THEN
+            LOCATE 9 + m, 20
+            IF a = 0 THEN
+                COLOR 15
+            ELSE
+                COLOR ScoreColor(m)
+            END IF
+            PRINT ScoreString(h, m)
+            a = a + 1
+            IF a > 1 THEN a = 0
+            Delay .1
+        END IF
+
+    LOOP UNTIL INKEY$ <> ""
+
 END SUB
 
