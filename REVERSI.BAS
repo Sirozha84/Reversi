@@ -1,3 +1,5 @@
+DECLARE SUB ShowHiScores ()
+DECLARE SUB Save ()
 DECLARE FUNCTION ScoreString$ (h!, i!)
 DECLARE FUNCTION ScoreColor! (i!)
 DECLARE SUB RedWindow (rows!)
@@ -297,11 +299,18 @@ SUB Init
 
     FirstPlayer = 0
 
+    OPEN "hiscores.sav" FOR INPUT AS 1
     FOR i = 0 TO 5
         FOR j = 0 TO 9
-            HiScores(i, j) = "......................................."
+            INPUT #1, s$
+            IF LEN(s$) = 39 THEN
+                HiScores(i, j) = s$
+            ELSE
+                HiScores(i, j) = "......................................."
+            END IF
         NEXT
     NEXT
+    CLOSE
 
     kmm = 6
 END SUB
@@ -385,7 +394,7 @@ FUNCTION InputName (m, pl)
         NEXT
         InputName = 0
     ELSEIF k = 0 THEN
-        pl(pl) = "Player" + STR$(pl)
+        pl(pl) = "Player" + STR$(pl + 1)
     ELSE
         InputName = -1
     END IF
@@ -486,6 +495,10 @@ FUNCTION Menu
             NewGame l, s
         END IF
     END IF
+
+    'Рекорды
+    IF kmm = 4 THEN ShowHiScores
+
 
     Menu = (kmm = 0)
 END FUNCTION
@@ -603,6 +616,16 @@ SUB RedWindow (rows)
     NEXT
 END SUB
 
+SUB Save
+    OPEN "hiscores.sav" FOR OUTPUT AS 1
+        FOR i = 0 TO 5
+            FOR j = 0 TO 9
+                PRINT #1, HiScores(i, j)
+            NEXT
+        NEXT
+    CLOSE
+END SUB
+
 FUNCTION ScoreColor (i)
     SELECT CASE i
         CASE 0: ScoreColor = 12
@@ -618,6 +641,48 @@ FUNCTION ScoreString$ (h, i)
     s$ = s$ + "." + HiScores(h, i)
     ScoreString = s$
 END FUNCTION
+
+SUB ShowHiScores
+    RedWindow 14
+    LOCATE 6, 31
+    COLOR 11
+    PRINT "Выберите вариант игры"
+    LOCATE 9, 38
+    PRINT "Рекорды"
+    l = 0
+    s = 0
+        DO
+        h = l * 3 + s
+        FOR i = 0 TO 1
+            FOR j = 0 TO 2
+                LOCATE 7 + i, 20 + j * 14
+                COLOR 9
+                IF i = l AND j = s THEN COLOR 13
+                IF j = 0 THEN s$ = "  8 x 8"
+                IF j = 1 THEN s$ = "16 x 16"
+                IF j = 2 THEN s$ = "32 x 32"
+                IF i = 0 THEN s$ = s$ + " Норм."
+                IF i = 1 THEN s$ = s$ + " Слож."
+                PRINT s$
+            NEXT
+        NEXT
+        FOR i = 0 TO 9
+            LOCATE 10 + i, 20
+            COLOR ScoreColor(i)
+            PRINT ScoreString(h, i)
+        NEXT
+        DO: LOOP UNTIL INKEY$ = ""
+        DO
+            k$ = INKEY$
+        LOOP WHILE k$ = ""
+        IF k$ = klf$ THEN s = s - 1
+        IF k$ = krt$ THEN s = s + 1
+        IF k$ = kup$ OR k$ = kdn$ THEN l = 1 - l
+        IF s < 0 THEN s = 2
+        IF s > 2 THEN s = 0
+    LOOP UNTIL k$ = kes$ OR k$ = ken$
+
+END SUB
 
 'Ход компьютера
 '0 - ход сделан
@@ -827,6 +892,8 @@ SUB Win (w)
 
         HiScores(h, m) = s$
     END IF
+
+    Save
 
     RedWindow 11
     LOCATE 8, 37
