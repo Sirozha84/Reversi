@@ -1,13 +1,17 @@
+DECLARE SUB Game (gr!())
+DECLARE SUB SaveGame ()
+DECLARE SUB LoadGame ()
+DECLARE SUB InitGame (mode!, lvl!, sz!)
+DECLARE SUB SaveParams ()
 DECLARE SUB ShowHiScores ()
 DECLARE SUB Save ()
 DECLARE FUNCTION ScoreString$ (h!, i!)
 DECLARE FUNCTION ScoreColor! (i!)
-DECLARE SUB RedWindow (rows!)
+DECLARE SUB Redwindow (rows!)
 DECLARE SUB Win (w!)
 DECLARE SUB DrawField (gr!())
 DECLARE FUNCTION InputName! (m!, pl!)
 DECLARE FUNCTION Menu! ()
-DECLARE SUB NewGame (lvl!, sz!)
 DECLARE FUNCTION MiniMenu! (menutype!)
 DECLARE SUB DrawTable (pl!)
 DECLARE SUB Benchmark ()
@@ -15,7 +19,6 @@ DECLARE SUB Delay (s!)
 DECLARE FUNCTION WhoWin! (pass!)
 DECLARE SUB CandidatesCalc (pl!)
 DECLARE FUNCTION FCount! (pl!)
-DECLARE SUB Game (gr!(), move!)
 DECLARE FUNCTION StepComputer! (pl!)
 DECLARE SUB CondidatesCalc (pl!)
 DECLARE SUB StepEnd (cx!, cy!, pl!)
@@ -52,9 +55,10 @@ DIM SHARED FirstPlayer
 
 DIM SHARED m(31, 31)    'Игровое поле
 DIM SHARED nm(31, 31)
+DIM SHARED pl(1) AS STRING   'Имена игроков
+DIM SHARED move         'Текущий ход
 DIM SHARED level        'Уровень сложности
 DIM SHARED size         'Размер
-DIM SHARED pl(1) AS STRING   'Имена игроков
 DIM SHARED score(1)     'Очки (отрыв)
 DIM SHARED left
 DIM SHARED bott
@@ -65,6 +69,7 @@ DIM SHARED ky
 DIM SHARED c(31, 31)    'Матрица для вычисления кодидатов
 DIM SHARED cicles       'Размер паузы
 DIM SHARED kmm          'Курсор главного меню
+DIM SHARED IsLoadGame   'Флаг "Эта игра загруженная"
         
 
 Init
@@ -218,7 +223,7 @@ FUNCTION FCount (pl)
 END FUNCTION
 
 'Процедура игры
-SUB Game (gr(), move)
+SUB Game (gr())
 
     'Определяем размеры полей и фишек
     SELECT CASE size
@@ -315,8 +320,62 @@ SUB Init
     kmm = 6
 END SUB
 
+'Запуск новой игры
+SUB InitGame (mode, lvl, sz)
+
+    IF mode = 0 THEN
+        level = lvl
+        size = sz
+    
+        'Подготовка поля
+        FOR x = 0 TO size - 1
+            FOR y = 0 TO size - 1
+                m(x, y) = -1
+            NEXT
+        NEXT
+        m(size / 2, size / 2) = 0
+        m(size / 2 - 1, size / 2 - 1) = 0
+        m(size / 2, size / 2 - 1) = 1
+        m(size / 2 - 1, size / 2) = 1
+        FOR x = 0 TO size - 1
+            FOR y = 0 TO size - 1
+                nm(x, y) = m(x, y)
+            NEXT
+        NEXT
+
+        'Поодготовка игроков
+        move = 0
+        kx = size / 2 - 2
+        ky = size / 2
+        IsLoadGame = 0
+    ELSE
+        LoadGame
+        IF size = 0 THEN
+            Redwindow 3
+            LOCATE 13, 27
+            COLOR 11
+            PRINT "Сохранение игры не обнаружено"
+            DO: LOOP WHILE INKEY$ <> ""
+            DO: LOOP WHILE INKEY$ = ""
+            EXIT SUB
+        END IF
+        IsLoadGame = -1
+    END IF
+
+    'Запуск нужного игры
+    SELECT CASE size
+        CASE 8
+            Game grf8()
+        CASE 16
+            Game grf16()
+        CASE 32
+            Game grf32()
+    END SELECT
+
+END SUB
+
 FUNCTION InputName (m, pl)
-    RedWindow 7
+    Redwindow 7
     PUT (300, 186), grf(0, pl), PSET
     LOCATE 13, 26
     COLOR 11
@@ -400,6 +459,37 @@ FUNCTION InputName (m, pl)
     END IF
 END FUNCTION
 
+SUB LoadGame
+    OPEN "game.sav" FOR RANDOM AS 1 LEN = 4
+        r = 1
+        FOR i = 0 TO 1
+            GET #1, r, l
+            r = r + 1
+            pl(i) = ""
+            FOR j = 1 TO l
+                GET #1, r, b
+                pl(i) = pl(i) + CHR$(b)
+                r = r + 1
+            NEXT
+        NEXT
+        GET #1, r, move
+        r = r + 1
+        GET #1, r, size
+        r = r + 1
+        FOR i = 0 TO size - 1
+            FOR j = 0 TO size - 1
+                GET #1, r, m(i, j)
+                r = r + 1
+                nm(i, j) = m(i, j)
+            NEXT
+        NEXT
+        GET #1, r, kx
+        r = r + 1
+        GET #1, r, ky
+        r = r + 1
+    CLOSE
+END SUB
+
 'Загрузка спрайтов
 'm() - массив, содержащий спрайт
 'file - имя файла
@@ -477,7 +567,7 @@ FUNCTION Menu
         IF k <> -1 THEN
             l = 0
             IF k = 1 THEN l = 1
-            NewGame l, s
+            InitGame 0, l, s
         END IF
     END IF
 
@@ -492,13 +582,15 @@ FUNCTION Menu
             IF k = 2 THEN s = 32
 
 
-            NewGame l, s
+            InitGame 0, l, s
         END IF
     END IF
 
     'Рекорды
     IF kmm = 4 THEN ShowHiScores
 
+    'Загрузка
+    IF kmm = 3 THEN InitGame 1, 0, 0
 
     Menu = (kmm = 0)
 END FUNCTION
@@ -530,7 +622,7 @@ FUNCTION MiniMenu (menutype)
     sh = 0
     IF tit$ <> "" THEN sh = 1   'Сдвиг, если есть тайтл
     rows = rows + sh
-    RedWindow rows
+    Redwindow rows
     top = 13 - INT(rows / 2)
     DO
     LOOP UNTIL INKEY$ = ""
@@ -558,46 +650,7 @@ FUNCTION MiniMenu (menutype)
     MiniMenu = k
 END FUNCTION
 
-'Запуск новой игры
-SUB NewGame (lvl, sz)
-
-    level = lvl
-    size = sz
-    
-    'Подготовка поля
-    FOR x = 0 TO size - 1
-        FOR y = 0 TO size - 1
-            m(x, y) = -1
-        NEXT
-    NEXT
-    m(size / 2, size / 2) = 0
-    m(size / 2 - 1, size / 2 - 1) = 0
-    m(size / 2, size / 2 - 1) = 1
-    m(size / 2 - 1, size / 2) = 1
-    FOR x = 0 TO size - 1
-        FOR y = 0 TO size - 1
-            nm(x, y) = m(x, y)
-        NEXT
-    NEXT
-
-    'Поодготовка игроков
-    move = 0
-    kx = size / 2 - 2
-    ky = size / 2
-
-    'Запуск нужного игры
-    SELECT CASE size
-        CASE 8:
-            Game grf8(), move
-        CASE 16:
-            Game grf16(), move
-        CASE 32:
-            Game grf32(), move
-    END SELECT
-
-END SUB
-
-SUB RedWindow (rows)
+SUB Redwindow (rows)
     top = 13 - INT(rows / 2)
     x = 140
     y = 350 - (top + rows - 1) * 14 - 7
@@ -616,7 +669,37 @@ SUB RedWindow (rows)
     NEXT
 END SUB
 
-SUB Save
+SUB SaveGame
+    OPEN "game.sav" FOR RANDOM AS 1 LEN = 4
+        r = 1
+        FOR i = 0 TO 1
+            l = LEN(pl(i))
+            PUT #1, r, l
+            r = r + 1
+            FOR j = 1 TO LEN(pl(i))
+                b = ASC(MID$(pl(i), j, 1))
+                PUT #1, r, b
+                r = r + 1
+            NEXT
+        NEXT
+        PUT #1, r, move
+        r = r + 1
+        PUT #1, r, size
+        r = r + 1
+        FOR i = 0 TO size - 1
+            FOR j = 0 TO size - 1
+                PUT #1, r, m(i, j)
+                r = r + 1
+            NEXT
+        NEXT
+        PUT #1, r, kx
+        r = r + 1
+        PUT #1, r, ky
+        r = r + 1
+    CLOSE
+END SUB
+
+SUB SaveParams
     OPEN "hiscores.sav" FOR OUTPUT AS 1
         FOR i = 0 TO 5
             FOR j = 0 TO 9
@@ -643,7 +726,7 @@ FUNCTION ScoreString$ (h, i)
 END FUNCTION
 
 SUB ShowHiScores
-    RedWindow 14
+    Redwindow 14
     LOCATE 6, 31
     COLOR 11
     PRINT "Выберите вариант игры"
@@ -702,16 +785,16 @@ FUNCTION StepComputer (pl)
 
     'Приоритетные и не желательные позиции
     IF level > 0 THEN
-        B = size - 1
+        b = size - 1
         IF c(0, 0) > 0 THEN c(0, 0) = 98
-        IF c(0, B) > 0 THEN c(0, B) = 98
-        IF c(B, 0) > 0 THEN c(B, 0) = 98
-        IF c(B, B) > 0 THEN c(B, B) = 98
-        FOR i = 2 TO B - 2
+        IF c(0, b) > 0 THEN c(0, b) = 98
+        IF c(b, 0) > 0 THEN c(b, 0) = 98
+        IF c(b, b) > 0 THEN c(b, b) = 98
+        FOR i = 2 TO b - 2
             IF c(i, 0) > 0 THEN c(i, 0) = 97
-            IF c(i, B) > 0 THEN c(i, B) = 97
+            IF c(i, b) > 0 THEN c(i, b) = 97
             IF c(0, i) > 0 THEN c(0, i) = 97
-            IF c(B, i) > 0 THEN c(B, i) = 97
+            IF c(b, i) > 0 THEN c(b, i) = 97
 
         NEXT
     END IF
@@ -802,11 +885,7 @@ FUNCTION StepHuman (gr(), pl)
         END IF
         IF k$ = kes$ THEN
             k = MiniMenu(0)
-            IF k = 1 THEN
-
-                'Тут будет сохранение игры
-
-            END IF
+            IF k = 1 THEN SaveGame
             IF k > 0 THEN
                 StepHuman = 2
                 EXIT FUNCTION
@@ -841,7 +920,7 @@ END FUNCTION
 
 SUB Win (w)
 
-    RedWindow 5
+    Redwindow 5
     COLOR 11
     IF w = 3 THEN
         PUT (199, 158), grf(0, 0), PSET
@@ -857,6 +936,9 @@ SUB Win (w)
     END IF
     DO: LOOP UNTIL INKEY$ = ""
     DO: LOOP UNTIL INKEY$ <> ""
+
+    'Если эта игра была загружена - удаляем файл
+    IF IsLoadGame THEN KILL "game.sav"
 
     'Если игра была не с компьютером - в таблицу не попадаем
     IF pl(0) <> "Computer" AND pl(1) <> "Computer" THEN EXIT SUB
@@ -884,7 +966,9 @@ SUB Win (w)
         DO
             s$ = s$ + "."
         LOOP UNTIL LEN(s$) = 12
-        s$ = s$ + STR$(sc)
+        sc$ = STR$(sc)
+        IF LEFT$(sc$, 1) = " " THEN sc$ = RIGHT$(sc$, LEN(sc$) - 1)
+        s$ = s$ + sc$
         DO
             s$ = s$ + "."
         LOOP UNTIL LEN(s$) = 19
@@ -893,9 +977,9 @@ SUB Win (w)
         HiScores(h, m) = s$
     END IF
 
-    Save
+    SaveParams
 
-    RedWindow 11
+    Redwindow 11
     LOCATE 8, 37
     PRINT "Рекорды"
     FOR i = 0 TO 9
