@@ -1,3 +1,6 @@
+DECLARE SUB Instruction ()
+DECLARE SUB PlaySound (i!)
+DECLARE SUB Options ()
 DECLARE SUB Game (gr!())
 DECLARE SUB SaveGame ()
 DECLARE SUB LoadGame ()
@@ -7,7 +10,7 @@ DECLARE SUB ShowHiScores ()
 DECLARE SUB Save ()
 DECLARE FUNCTION ScoreString$ (h!, i!)
 DECLARE FUNCTION ScoreColor! (i!)
-DECLARE SUB Redwindow (rows!)
+DECLARE SUB RedWindow (rows!)
 DECLARE SUB Win (w!)
 DECLARE SUB DrawField (gr!())
 DECLARE FUNCTION InputName! (m!, pl!)
@@ -50,8 +53,8 @@ REDIM SHARED grp(0, 0)  'Полоса прокрутки     20*16*6
 REDIM SHARED grt(0, 0)  'Табло                94*322*1
 
 DIM SHARED HiScores(5, 10) AS STRING
-
 DIM SHARED FirstPlayer
+DIM SHARED SoundEnable
 
 DIM SHARED m(31, 31)    'Игровое поле
 DIM SHARED nm(31, 31)
@@ -70,7 +73,7 @@ DIM SHARED c(31, 31)    'Матрица для вычисления кодидатов
 DIM SHARED cicles       'Размер паузы
 DIM SHARED kmm          'Курсор главного меню
 DIM SHARED IsLoadGame   'Флаг "Эта игра загруженная"
-        
+DIM SHARED NeedRefresh  'Флаг "Нужно перерисовать главное меню"
 
 Init
 
@@ -284,6 +287,7 @@ SUB Game (gr())
         move = 1 - move
 
     LOOP WHILE NOT endgame
+    NeedRefresh = -1
 END SUB
 
 'Инициализация, загрузка файлов графики
@@ -303,6 +307,13 @@ SUB Init
     LoadGRP grt(), "tab.grp", 1, 3865
 
     FirstPlayer = 0
+    SoundEnable = 1
+    OPEN "reversi.cfg" FOR APPEND AS 1
+    CLOSE
+    OPEN "reversi.cfg" FOR INPUT AS 1
+        IF NOT EOF(1) THEN INPUT #1, FirstPlayer
+        IF NOT EOF(1) THEN INPUT #1, SoundEnable
+    CLOSE
 
     OPEN "hiscores.sav" FOR INPUT AS 1
     FOR i = 0 TO 5
@@ -318,6 +329,7 @@ SUB Init
     CLOSE
 
     kmm = 6
+    NeedRefresh = -1
 END SUB
 
 'Запуск новой игры
@@ -351,7 +363,7 @@ SUB InitGame (mode, lvl, sz)
     ELSE
         LoadGame
         IF size = 0 THEN
-            Redwindow 3
+            RedWindow 3
             LOCATE 13, 27
             COLOR 11
             PRINT "Сохранение игры не обнаружено"
@@ -375,7 +387,7 @@ SUB InitGame (mode, lvl, sz)
 END SUB
 
 FUNCTION InputName (m, pl)
-    Redwindow 7
+    RedWindow 7
     PUT (300, 186), grf(0, pl), PSET
     LOCATE 13, 26
     COLOR 11
@@ -459,6 +471,94 @@ FUNCTION InputName (m, pl)
     END IF
 END FUNCTION
 
+SUB Instruction
+    RedWindow 15
+    s$ = "                                          "
+    p = 0
+    DO
+        SELECT CASE p
+            CASE 0
+                LOCATE 6, 35
+                COLOR 11
+                PRINT "R E V E R S I"
+                COLOR 13
+                LOCATE 8, 20
+                PRINT "Версия:                   1.1 (19.06.2025)"
+                LOCATE 9, 20: PRINT s$
+                LOCATE 10, 20
+                PRINT "Автор:                      Сергей гордеев"
+                LOCATE 11, 20: PRINT s$
+                LOCATE 12, 20
+                PRINT "Сайт:                       sg-software.ru"
+                LOCATE 13, 20: PRINT s$
+                LOCATE 14, 20
+                PRINT "Группа в ВК:             vk.com/sgsoftware"
+                LOCATE 15, 20: PRINT s$
+                LOCATE 16, 20: PRINT s$
+            CASE 1
+                COLOR 13
+                LOCATE 8, 20
+                PRINT "Реверси -  настольная игра двух игроков на"
+                LOCATE 9, 20
+                PRINT "квадратном поле. Игроки по очереди выстав-"
+                LOCATE 10, 20
+                PRINT "ляют фишки  своего  цвета  таким  образом,"
+                LOCATE 11, 20
+                PRINT "чтобы  между новой фишкой и уже  имеющейся"
+                LOCATE 12, 20
+                PRINT "в ряд по горизонтали, вертикали или диаго-"
+                LOCATE 13, 20
+                PRINT "нали  находились  фишки  соперника.  Такие"
+                LOCATE 14, 20
+                PRINT "фишки  будут захвачены и  обращены в свои."
+                LOCATE 15, 20
+                PRINT "Побеждает тот игрок,  у  которого в момент"
+                LOCATE 16, 20
+                PRINT "захвата всего поля  фишек окажется больше."
+            CASE 2
+                COLOR 13
+                LOCATE 8, 20
+                PRINT "Иногда бывают ситуации,  когда нет доступ-"
+                LOCATE 9, 20
+                PRINT "ных ходов, тогда можно  сделать пасс. Если"
+                LOCATE 10, 20
+                PRINT "пасс делают  оба игрока  -  игра считается"
+                LOCATE 11, 20
+                PRINT "завершённой.                              "
+                FOR i = 12 TO 16
+                    LOCATE i, 20: PRINT s$
+                NEXT
+        END SELECT
+        LOCATE 20, 34
+        COLOR 3
+        PRINT "Страница:"; p + 1; "/ 2"
+
+        PUT (500, 63), grp(0, 0), PSET
+        FOR i = 79 TO 260 STEP 16
+            PUT (500, i), grp(0, 5), PSET
+        NEXT
+        PUT (500, 271), grp(0, 1), PSET
+
+        PUT (500, 250 - p * 10), grp(0, 4), PSET
+
+        DO: LOOP WHILE INKEY$ <> ""
+        oldp = p
+        DO
+            k$ = INKEY$
+            IF k$ = kup$ AND p > 0 THEN p = p - 1
+            IF k$ = kdn$ AND p < 2 THEN p = p + 1
+        LOOP WHILE k$ <> ken$ AND k$ <> kes$ AND oldp = p
+        IF p > oldp THEN
+            PUT (500, 63), grp(0, 2), PSET
+            Delay .1
+        END IF
+        IF p < oldp THEN
+            PUT (500, 271), grp(0, 3), PSET
+            Delay .1
+        END IF
+    LOOP WHILE k$ <> ken$ AND k$ <> kes$
+END SUB
+
 SUB LoadGame
     OPEN "game.sav" FOR RANDOM AS 1 LEN = 4
         r = 1
@@ -467,8 +567,8 @@ SUB LoadGame
             r = r + 1
             pl(i) = ""
             FOR j = 1 TO l
-                GET #1, r, b
-                pl(i) = pl(i) + CHR$(b)
+                GET #1, r, B
+                pl(i) = pl(i) + CHR$(B)
                 r = r + 1
             NEXT
         NEXT
@@ -509,27 +609,31 @@ SUB LoadGRP (m(), file AS STRING, cn, ln)
 END SUB
 
 FUNCTION Menu
-    CLS
-    LOCATE 25, 76
-    COLOR 8
-    PRINT "V 1.1"
-    COLOR 15
-    FOR i = 0 TO 6
-        PUT (27 + i * 90, 280), grn(0, i), PSET
-        '+ SIN(i + a / 5 * 3.14 * 2) * 10 - забавно, но слишком "весело"
-    NEXT
+    IF NeedRefresh THEN
+        CLS
+        LOCATE 25, 76
+        COLOR 8
+        PRINT "V 1.1"
+        COLOR 15
+        FOR i = 0 TO 6
+            PUT (27 + i * 90, 280), grn(0, i), PSET
+            '+ SIN(i + a / 5 * 3.14 * 2) * 10 - забавно, но слишком "весело"
+        NEXT
 
-    FOR i = 0 TO 9
-        y = i * .6
-        LINE (100 + i, 10 + y)-(100 + i, 239 - y)
-        LINE -(539 - i, 239 - y)
-        LINE -(539 - i, 10 + y), 8
-        LINE -(100 + i, 10 + y), 8
-    NEXT
-    LINE (110, 16)-(529, 233), 7, BF
-    FOR i = 0 TO 6
-        PUT (220, 22 + i * 30), grk(0, i), PSET
-    NEXT
+        FOR i = 0 TO 9
+            y = i * .6
+            LINE (100 + i, 10 + y)-(100 + i, 239 - y)
+            LINE -(539 - i, 239 - y)
+            LINE -(539 - i, 10 + y), 8
+            LINE -(100 + i, 10 + y), 8
+        NEXT
+        LINE (110, 16)-(529, 233), 7, BF
+        FOR i = 0 TO 6
+            PUT (220, 22 + i * 30), grk(0, i), PSET
+        NEXT
+    ELSE
+        PCOPY 1, 0
+    END IF
     DO: LOOP UNTIL INKEY$ = ""
     DO
         PUT (140, 22 + kmm * 30), gra(0, INT(a)), PSET
@@ -542,8 +646,8 @@ FUNCTION Menu
             LINE (140, 22 + kmm * 30)-(185, 45 + kmm * 30), 7, BF
             LINE (453, 22 + kmm * 30)-(498, 45 + kmm * 30), 7, BF
         END IF
-        IF k$ = kup$ THEN kmm = kmm + 1
-        IF k$ = kdn$ THEN kmm = kmm - 1
+        IF k$ = kup$ THEN kmm = kmm + 1: PlaySound 0
+        IF k$ = kdn$ THEN kmm = kmm - 1: PlaySound 0
         IF kmm > 6 THEN kmm = 0
         IF kmm < 0 THEN kmm = 6
         IF k$ = kes$ THEN k$ = ken$: kmm = 0
@@ -551,7 +655,7 @@ FUNCTION Menu
     PUT (220, 22 + kmm * 30), grk(0, kmm + 7), PSET
     Delay .15
     PUT (220, 22 + kmm * 30), grk(0, kmm), PSET
-    Delay .15
+    NeedRefresh = 0
 
     'Новая игра
     IF kmm = 6 THEN
@@ -580,23 +684,21 @@ FUNCTION Menu
             s = 8
             IF k = 1 THEN s = 16
             IF k = 2 THEN s = 32
-
-
             InitGame 0, l, s
         END IF
     END IF
 
-    'Рекорды
+    'Прочие пункты меню
     IF kmm = 4 THEN ShowHiScores
-
-    'Загрузка
     IF kmm = 3 THEN InitGame 1, 0, 0
+    IF kmm = 2 THEN Options
+    IF kmm = 1 THEN Instruction
 
     Menu = (kmm = 0)
 END FUNCTION
 
 FUNCTION MiniMenu (menutype)
-    DIM p(20) AS STRING
+    DIM p(2) AS STRING
     SELECT CASE menutype
         CASE 0
             p(0) = " Продолжить (Esc)"
@@ -622,7 +724,7 @@ FUNCTION MiniMenu (menutype)
     sh = 0
     IF tit$ <> "" THEN sh = 1   'Сдвиг, если есть тайтл
     rows = rows + sh
-    Redwindow rows
+    RedWindow rows
     top = 13 - INT(rows / 2)
     DO
     LOOP UNTIL INKEY$ = ""
@@ -650,7 +752,62 @@ FUNCTION MiniMenu (menutype)
     MiniMenu = k
 END FUNCTION
 
-SUB Redwindow (rows)
+SUB Options
+    RedWindow 3
+
+    DIM p(1) AS STRING
+    p(0) = "Первым ходит: "
+    p(1) = "        Звук: "
+    DIM pp(1, 1) AS STRING
+    pp(0, 0) = "Игрок    "
+    pp(0, 1) = "Компьютер"
+    pp(1, 0) = "Выкл"
+    pp(1, 1) = "Вкл "
+    DIM o(1)
+    o(0) = FirstPlayer
+    o(1) = SoundEnable
+    DO: LOOP UNTIL INKEY$ = ""
+    k = 0
+    DO
+        LOCATE 12, 38
+        COLOR 11
+        PRINT "Опции"
+        FOR i = 0 TO 1
+            LOCATE 13 + i, 30
+            COLOR 9
+            IF k = i THEN COLOR 13
+            PRINT p(i); pp(i, o(i))
+        NEXT
+        DO
+            k$ = INKEY$
+        LOOP WHILE k$ = ""
+        IF k$ = kup$ THEN k = k - 1
+        IF k$ = kdn$ THEN k = k + 1
+        IF k < 0 THEN k = 1
+        IF k > 1 THEN k = 0
+        IF k$ = klf$ OR k$ = krt$ THEN o(k) = 1 - o(k)
+        IF k$ = ken$ THEN
+            FirstPlayer = o(0)
+            SoundEnable = o(1)
+            SaveParams
+            k$ = kes$
+        END IF
+    LOOP UNTIL k$ = kes$
+    'PCOPY 1, 0
+END SUB
+
+SUB PlaySound (i)
+    IF SoundEnable = 0 THEN EXIT SUB
+    SELECT CASE i
+        CASE 0
+
+            SOUND 10000, .03
+            SOUND 1000, .03
+            SOUND 100, .03
+    END SELECT
+END SUB
+
+SUB RedWindow (rows)
     top = 13 - INT(rows / 2)
     x = 140
     y = 350 - (top + rows - 1) * 14 - 7
@@ -662,9 +819,12 @@ SUB Redwindow (rows)
         x2 = 639 - x - i * 170
         y2 = y + h - i * h / 2
         LINE (x1, y1)-(x2, y2), 13, B
-        LINE (x1 + 1, y1 + 1)-(x2 - 1, y2 - 1), 12, B
-        LINE (x1 + 2, y1 + 2)-(x2 - 2, y2 - 2), 4, B
-        LINE (x1 + 3, y1 + 3)-(x2 - 3, y2 - 3), 0, BF
+        LINE (x1 + 1, y1 + 1)-(x2 - 1, y2 - 1), 13, B
+        LINE (x1 + 2, y1 + 2)-(x2 - 2, y2 - 2), 12, B
+        LINE (x1 + 3, y1 + 3)-(x2 - 3, y2 - 3), 12, B
+        LINE (x1 + 4, y1 + 4)-(x2 - 4, y2 - 4), 4, B
+        LINE (x1 + 5, y1 + 5)-(x2 - 5, y2 - 5), 4, B
+        LINE (x1 + 6, y1 + 6)-(x2 - 6, y2 - 6), 0, BF
         Delay .01
     NEXT
 END SUB
@@ -677,8 +837,8 @@ SUB SaveGame
             PUT #1, r, l
             r = r + 1
             FOR j = 1 TO LEN(pl(i))
-                b = ASC(MID$(pl(i), j, 1))
-                PUT #1, r, b
+                B = ASC(MID$(pl(i), j, 1))
+                PUT #1, r, B
                 r = r + 1
             NEXT
         NEXT
@@ -700,6 +860,11 @@ SUB SaveGame
 END SUB
 
 SUB SaveParams
+    OPEN "reversi.cfg" FOR OUTPUT AS 1
+        PRINT #1, FirstPlayer
+        PRINT #1, SoundEnable
+    CLOSE
+
     OPEN "hiscores.sav" FOR OUTPUT AS 1
         FOR i = 0 TO 5
             FOR j = 0 TO 9
@@ -726,7 +891,7 @@ FUNCTION ScoreString$ (h, i)
 END FUNCTION
 
 SUB ShowHiScores
-    Redwindow 14
+    RedWindow 14
     LOCATE 6, 31
     COLOR 11
     PRINT "Выберите вариант игры"
@@ -785,16 +950,16 @@ FUNCTION StepComputer (pl)
 
     'Приоритетные и не желательные позиции
     IF level > 0 THEN
-        b = size - 1
+        B = size - 1
         IF c(0, 0) > 0 THEN c(0, 0) = 98
-        IF c(0, b) > 0 THEN c(0, b) = 98
-        IF c(b, 0) > 0 THEN c(b, 0) = 98
-        IF c(b, b) > 0 THEN c(b, b) = 98
-        FOR i = 2 TO b - 2
+        IF c(0, B) > 0 THEN c(0, B) = 98
+        IF c(B, 0) > 0 THEN c(B, 0) = 98
+        IF c(B, B) > 0 THEN c(B, B) = 98
+        FOR i = 2 TO B - 2
             IF c(i, 0) > 0 THEN c(i, 0) = 97
-            IF c(i, b) > 0 THEN c(i, b) = 97
+            IF c(i, B) > 0 THEN c(i, B) = 97
             IF c(0, i) > 0 THEN c(0, i) = 97
-            IF c(b, i) > 0 THEN c(b, i) = 97
+            IF c(B, i) > 0 THEN c(B, i) = 97
 
         NEXT
     END IF
@@ -920,7 +1085,7 @@ END FUNCTION
 
 SUB Win (w)
 
-    Redwindow 5
+    RedWindow 5
     COLOR 11
     IF w = 3 THEN
         PUT (199, 158), grf(0, 0), PSET
@@ -979,7 +1144,7 @@ SUB Win (w)
 
     SaveParams
 
-    Redwindow 11
+    RedWindow 11
     LOCATE 8, 37
     PRINT "Рекорды"
     FOR i = 0 TO 9
