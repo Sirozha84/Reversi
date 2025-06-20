@@ -1,3 +1,5 @@
+DECLARE SUB Intro ()
+DECLARE SUB Square (x!, y!, n!, i!)
 DECLARE SUB Instruction ()
 DECLARE SUB PlaySound (i!)
 DECLARE SUB Options ()
@@ -57,43 +59,50 @@ DIM SHARED FirstPlayer
 DIM SHARED SoundEnable
 
 DIM SHARED m(31, 31)    'Игровое поле
-DIM SHARED nm(31, 31)
-DIM SHARED pl(1) AS STRING   'Имена игроков
+DIM SHARED nm(31, 31)   'Копия поля для обновления
+DIM SHARED pl(1) AS STRING 'Имена игроков
 DIM SHARED move         'Текущий ход
 DIM SHARED level        'Уровень сложности
 DIM SHARED size         'Размер
 DIM SHARED score(1)     'Очки (отрыв)
-DIM SHARED left
+DIM SHARED left         'Координаты поля
 DIM SHARED bott
-DIM SHARED wd
+DIM SHARED wd           'Расстояния между клетками
 DIM SHARED hg
 DIM SHARED kx           'Курсор
 DIM SHARED ky
-DIM SHARED c(31, 31)    'Матрица для вычисления кодидатов
+DIM SHARED c(31, 31)    'Матрица для вычисления кадидатов
 DIM SHARED cicles       'Размер паузы
 DIM SHARED kmm          'Курсор главного меню
 DIM SHARED IsLoadGame   'Флаг "Эта игра загруженная"
 DIM SHARED NeedRefresh  'Флаг "Нужно перерисовать главное меню"
 
+DATA 1,1,1,1,0,0,1,1,1,1
+DATA 0,0,0,1,0,0,1,0,0,1
+DATA 1,1,1,1,0,0,1,0,1,1
+DATA 1,0,0,0,0,0,1,0,0,0
+DATA 1,1,1,1,0,0,1,1,1,1
+
 Init
-
-'pl(0) = "Sirozha"
-'pl(1) = "Computer"
-'NewGame 1, 8: END
-
-
+Intro
 DO
 LOOP UNTIL Menu
 
 SUB Benchmark
-    cicles = 0
-    t = TIMER
+    old = 0
+    c = 0
     DO
-    LOOP UNTIL t <> TIMER
-    t = TIMER
-    DO
-        cicles = cicles + 1
-    LOOP UNTIL t <> TIMER
+        cicles = 0
+        t = TIMER
+        DO
+            FOR j = 0 TO 99
+                s = SIN(0)
+            NEXT
+            cicles = cicles + 1
+        LOOP UNTIL t <> TIMER
+        IF ABS(old - cicles) < 2 THEN c = c + 1 ELSE c = 0
+        old = cicles
+    LOOP WHILE c < 2
 END SUB
 
 'Вычисление матрицы кандидатов
@@ -120,7 +129,7 @@ END SUB
 
 'Расчёт количества "обращённых" в клетке cx, cy
 'mx, my - направление
-'pl - игок
+'pl - игрок
 FUNCTION CellCheck (cx, cy, mx, my, pl)
     x = cx
     y = cy
@@ -153,6 +162,9 @@ END SUB
 'Пауза в секундах
 SUB Delay (s)
     FOR i = 0 TO s * cicles * 18
+        FOR j = 0 TO 99
+            sn = SIN(0)
+        NEXT
         t = TIMER
     NEXT
 END SUB
@@ -262,7 +274,7 @@ SUB Game (gr())
         ELSE
             s = StepComputer(move)
         END IF
-        IF s = 1 THEN pass = pass + 1 ELSE pass = 0 'Два пасса
+        IF s = 1 THEN pass = pass + 1 ELSE pass = 0 'Два паса
         IF s = 2 THEN endgame = -1                  'Запрос выхода
 
         'Обновляем поле
@@ -355,7 +367,7 @@ SUB InitGame (mode, lvl, sz)
             NEXT
         NEXT
 
-        'Поодготовка игроков
+        'Подготовка игроков
         move = 0
         kx = size / 2 - 2
         ky = size / 2
@@ -486,7 +498,7 @@ SUB Instruction
                 PRINT "Версия:                   1.1 (19.06.2025)"
                 LOCATE 9, 20: PRINT s$
                 LOCATE 10, 20
-                PRINT "Автор:                      Сергей гордеев"
+                PRINT "Автор:                      Сергей Гордеев"
                 LOCATE 11, 20: PRINT s$
                 LOCATE 12, 20
                 PRINT "Сайт:                       sg-software.ru"
@@ -520,9 +532,9 @@ SUB Instruction
                 LOCATE 8, 20
                 PRINT "Иногда бывают ситуации,  когда нет доступ-"
                 LOCATE 9, 20
-                PRINT "ных ходов, тогда можно  сделать пасс. Если"
+                PRINT "ных ходов, тогда можно  сделать пас.  Если"
                 LOCATE 10, 20
-                PRINT "пасс делают  оба игрока  -  игра считается"
+                PRINT "пас  делают  оба игрока  -  игра считается"
                 LOCATE 11, 20
                 PRINT "завершённой.                              "
                 FOR i = 12 TO 16
@@ -559,6 +571,126 @@ SUB Instruction
     LOOP WHILE k$ <> ken$ AND k$ <> kes$
 END SUB
 
+SUB Intro
+    d = .05
+    DIM sg(9, 4)
+    
+    FOR y = 0 TO 4
+        FOR x = 0 TO 9
+            READ sg(x, y)
+        NEXT
+    NEXT
+
+    'Red Square
+    FOR i = 0 TO 7
+        FOR x = 1 TO 5
+            FOR y = 10 TO 14
+                Square x, y, 0, i
+            NEXT
+        NEXT
+        Delay d
+    NEXT
+
+    'Green Square
+    FOR i = 0 TO 7
+        FOR x = 4 TO 8
+            FOR y = 9 TO 13
+                IF x < 6 AND y > 9 THEN
+                    Square x, y, 1, i
+                ELSE
+                    Square x, y, 6, i
+                END IF
+            NEXT
+        NEXT
+        Delay d
+    NEXT
+
+    'Blue Square
+    FOR i = 0 TO 7
+        FOR x = 2 TO 6
+            FOR y = 7 TO 11
+                IF x < 4 AND y > 9 THEN
+                    Square x, y, 3, i
+                ELSEIF x > 3 AND y > 8 THEN
+                    Square x, y, 2, i
+                ELSE
+                    Square x, y, 4, i
+                END IF
+            NEXT
+        NEXT
+        Delay d
+    NEXT
+
+    'SG
+    FOR i = 0 TO 15
+        FOR x = 0 TO 9
+            FOR y = 0 TO 4
+                b = x - y - 2
+                IF b > 0 THEN b = 1 - b
+                IF b < 5 THEN ii = i + b ELSE ii = b - i
+                IF sg(x, y) = 1 AND ii > 0 AND ii < 16 THEN Square x, y, 4, ii
+            NEXT
+        NEXT
+        Delay d
+    NEXT
+
+    Delay 2
+
+    'Шторки
+    FOR i = 0 TO 175
+        LINE (0, i)-(639, i), 0
+        LINE (0, 349 - i)-(639, 349 - i), 0
+        Delay .008
+    NEXT
+
+    'Представляет...
+    p$ = "П р е д с т а в л я е т"
+    LOCATE 13, 29
+    COLOR 6
+    PRINT p$
+    Delay .2
+
+    LOCATE 13, 29
+    COLOR 14
+    PRINT p$
+    Delay 1.5
+
+    LOCATE 13, 29
+    COLOR 6
+    PRINT p$
+    Delay .2
+
+    CLS
+    Delay .2
+
+    'Весёленькое появление названия
+    SCREEN 9, 0, 1, 0
+    CLS
+    FOR a = 0 TO 100
+        CLS
+        FOR i = 0 TO 6
+            y = ABS(SIN((a + i) / 5)) * (100 - a)
+            PUT (27 + i * 90, 152 + y), grn(0, i), PSET
+        NEXT
+        LINE (0, 152)-(319 - a * 10, 349), 0, BF
+        LINE (639, 152)-(320 + a * 10, 349), 0, BF
+        PCOPY 1, 0
+        Delay .01
+    NEXT
+    SCREEN 9, 0, 0, 0
+
+    'Скролл Надписи вверх
+    FOR y = 152 TO 280 STEP 4
+        FOR i = 0 TO 6
+            PUT (27 + i * 90, y), grn(0, i), PSET
+        NEXT
+        LINE (0, y - 1)-(639, y - 4), 0, BF
+        Delay .001
+    NEXT
+
+
+END SUB
+
 SUB LoadGame
     OPEN "game.sav" FOR RANDOM AS 1 LEN = 4
         r = 1
@@ -567,8 +699,8 @@ SUB LoadGame
             r = r + 1
             pl(i) = ""
             FOR j = 1 TO l
-                GET #1, r, B
-                pl(i) = pl(i) + CHR$(B)
+                GET #1, r, b
+                pl(i) = pl(i) + CHR$(b)
                 r = r + 1
             NEXT
         NEXT
@@ -593,7 +725,7 @@ END SUB
 'Загрузка спрайтов
 'm() - массив, содержащий спрайт
 'file - имя файла
-'cn - колиочество спрайтов
+'cn - количество спрайтов
 'ln - длина массива
 SUB LoadGRP (m(), file AS STRING, cn, ln)
     REDIM m(ln - 1, cn - 1)
@@ -617,7 +749,6 @@ FUNCTION Menu
         COLOR 15
         FOR i = 0 TO 6
             PUT (27 + i * 90, 280), grn(0, i), PSET
-            '+ SIN(i + a / 5 * 3.14 * 2) * 10 - забавно, но слишком "весело"
         NEXT
 
         FOR i = 0 TO 9
@@ -837,8 +968,8 @@ SUB SaveGame
             PUT #1, r, l
             r = r + 1
             FOR j = 1 TO LEN(pl(i))
-                B = ASC(MID$(pl(i), j, 1))
-                PUT #1, r, B
+                b = ASC(MID$(pl(i), j, 1))
+                PUT #1, r, b
                 r = r + 1
             NEXT
         NEXT
@@ -932,6 +1063,14 @@ SUB ShowHiScores
 
 END SUB
 
+'Цветной квадрат в квадратной сетке
+'x, y - ячейка
+'n - номер градации
+'i - степень градации
+SUB Square (x, y, n, i)
+    PUT (220 + x * 20, 55 + y * 16), grc(0, n * 8 + i), PSET
+END SUB
+
 'Ход компьютера
 '0 - ход сделан
 '1 - пас
@@ -950,16 +1089,16 @@ FUNCTION StepComputer (pl)
 
     'Приоритетные и не желательные позиции
     IF level > 0 THEN
-        B = size - 1
+        b = size - 1
         IF c(0, 0) > 0 THEN c(0, 0) = 98
-        IF c(0, B) > 0 THEN c(0, B) = 98
-        IF c(B, 0) > 0 THEN c(B, 0) = 98
-        IF c(B, B) > 0 THEN c(B, B) = 98
-        FOR i = 2 TO B - 2
+        IF c(0, b) > 0 THEN c(0, b) = 98
+        IF c(b, 0) > 0 THEN c(b, 0) = 98
+        IF c(b, b) > 0 THEN c(b, b) = 98
+        FOR i = 2 TO b - 2
             IF c(i, 0) > 0 THEN c(i, 0) = 97
-            IF c(i, B) > 0 THEN c(i, B) = 97
+            IF c(i, b) > 0 THEN c(i, b) = 97
             IF c(0, i) > 0 THEN c(0, i) = 97
-            IF c(B, i) > 0 THEN c(B, i) = 97
+            IF c(b, i) > 0 THEN c(b, i) = 97
 
         NEXT
     END IF
@@ -1108,7 +1247,7 @@ SUB Win (w)
     'Если игра была не с компьютером - в таблицу не попадаем
     IF pl(0) <> "Computer" AND pl(1) <> "Computer" THEN EXIT SUB
 
-    'Определяем в какую таблицу рекдордов мы попадаем
+    'Определяем в какую таблицу рекордов мы попадаем
     h = 0
     IF size = 16 THEN h = 1
     IF size = 32 THEN h = 2
