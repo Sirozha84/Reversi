@@ -286,6 +286,10 @@ SUB Game (gr())
                 END IF
             NEXT
         NEXT
+        'Звук
+        IF s = 0 THEN PlaySound 0
+        IF s = 1 THEN PlaySound 1
+        IF s = 2 THEN PlaySound 1
         
         'Определяем, есть ли победа
         w = WhoWin(pass > 1)
@@ -305,7 +309,9 @@ END SUB
 'Инициализация, загрузка файлов графики
 SUB Init
     SCREEN 9
-    Benchmark
+    COLOR 8
+    LOCATE 25, 70
+    PRINT "Загрузка..."
     WINDOW (0, 0)-(639, 349)
     LoadGRP grf(), "f.grp", 2, 281
     LoadGRP grf8(), "f8.grp", 9, 281
@@ -317,7 +323,6 @@ SUB Init
     LoadGRP grn(), "name.grp", 7, 277
     LoadGRP grp(), "prok.grp", 6, 49
     LoadGRP grt(), "tab.grp", 1, 3865
-
     FirstPlayer = 0
     SoundEnable = 1
     OPEN "reversi.cfg" FOR APPEND AS 1
@@ -327,10 +332,13 @@ SUB Init
         IF NOT EOF(1) THEN INPUT #1, SoundEnable
     CLOSE
 
+    OPEN "hiscores.sav" FOR APPEND AS 1
+    CLOSE
+
     OPEN "hiscores.sav" FOR INPUT AS 1
     FOR i = 0 TO 5
         FOR j = 0 TO 9
-            INPUT #1, s$
+            IF NOT EOF(1) THEN INPUT #1, s$ ELSE s$ = ""
             IF LEN(s$) = 39 THEN
                 HiScores(i, j) = s$
             ELSE
@@ -339,9 +347,11 @@ SUB Init
         NEXT
     NEXT
     CLOSE
-
     kmm = 6
     NeedRefresh = -1
+    Benchmark
+    CLS
+    Delay .5
 END SUB
 
 'Запуск новой игры
@@ -488,70 +498,75 @@ SUB Instruction
     s$ = "                                          "
     p = 0
     DO
+        LOCATE 6, 35
+        COLOR 11
+        PRINT "R E V E R S I"
+        COLOR 13
         SELECT CASE p
             CASE 0
-                LOCATE 6, 35
-                COLOR 11
-                PRINT "R E V E R S I"
-                COLOR 13
-                LOCATE 8, 20
-                PRINT "Версия:                   1.1 (19.06.2025)"
                 LOCATE 9, 20: PRINT s$
                 LOCATE 10, 20
-                PRINT "Автор:                      Сергей Гордеев"
+                PRINT "Версия:                   1.1 (21.06.2025)"
                 LOCATE 11, 20: PRINT s$
                 LOCATE 12, 20
-                PRINT "Сайт:                       sg-software.ru"
+                PRINT "Автор:                      Сергей Гордеев"
                 LOCATE 13, 20: PRINT s$
                 LOCATE 14, 20
-                PRINT "Группа в ВК:             vk.com/sgsoftware"
+                PRINT "Сайт:                       sg-software.ru"
                 LOCATE 15, 20: PRINT s$
-                LOCATE 16, 20: PRINT s$
-            CASE 1
-                COLOR 13
-                LOCATE 8, 20
-                PRINT "Реверси -  настольная игра двух игроков на"
-                LOCATE 9, 20
-                PRINT "квадратном поле. Игроки по очереди выстав-"
-                LOCATE 10, 20
-                PRINT "ляют фишки  своего  цвета  таким  образом,"
-                LOCATE 11, 20
-                PRINT "чтобы  между новой фишкой и уже  имеющейся"
-                LOCATE 12, 20
-                PRINT "в ряд по горизонтали, вертикали или диаго-"
-                LOCATE 13, 20
-                PRINT "нали  находились  фишки  соперника.  Такие"
-                LOCATE 14, 20
-                PRINT "фишки  будут захвачены и  обращены в свои."
-                LOCATE 15, 20
-                PRINT "Побеждает тот игрок,  у  которого в момент"
                 LOCATE 16, 20
+                PRINT "Группа в ВК:             vk.com/sgsoftware"
+                LOCATE 17, 20: PRINT s$
+                
+            CASE 1
+                LOCATE 9, 20
+                PRINT "Реверси -  настольная игра двух игроков на"
+                LOCATE 10, 20
+                PRINT "квадратном поле. Игроки по очереди выстав-"
+                LOCATE 11, 20
+                PRINT "ляют фишки  своего  цвета  таким  образом,"
+                LOCATE 12, 20
+                PRINT "чтобы  между новой фишкой и уже  имеющейся"
+                LOCATE 13, 20
+                PRINT "в ряд по горизонтали, вертикали или диаго-"
+                LOCATE 14, 20
+                PRINT "нали  находились  фишки  соперника.  Такие"
+                LOCATE 15, 20
+                PRINT "фишки  будут захвачены и  обращены в свои."
+                LOCATE 16, 20
+                PRINT "Побеждает тот игрок,  у  которого в момент"
+                LOCATE 17, 20
                 PRINT "захвата всего поля  фишек окажется больше."
             CASE 2
-                COLOR 13
-                LOCATE 8, 20
-                PRINT "Иногда бывают ситуации,  когда нет доступ-"
                 LOCATE 9, 20
-                PRINT "ных ходов, тогда можно  сделать пас.  Если"
+                PRINT "Иногда бывают ситуации,  когда нет доступ-"
                 LOCATE 10, 20
-                PRINT "пас  делают  оба игрока  -  игра считается"
+                PRINT "ных ходов, тогда можно  сделать пас.  Если"
                 LOCATE 11, 20
+                PRINT "пас  делают  оба игрока  -  игра считается"
+                LOCATE 12, 20
                 PRINT "завершённой.                              "
-                FOR i = 12 TO 16
-                    LOCATE i, 20: PRINT s$
-                NEXT
+                LOCATE 13, 20: PRINT s$
+                LOCATE 14, 20
+                PRINT "                Управление                "
+                LOCATE 15, 20
+                PRINT "Выбор клетки:                      Стрелки"
+                LOCATE 16, 20
+                PRINT "Сделать ход:                         Enter"
+                LOCATE 17, 20
+                PRINT "Пас:                                Пробел"
         END SELECT
         LOCATE 20, 34
         COLOR 3
-        PRINT "Страница:"; p + 1; "/ 2"
+        PRINT "Страница:"; p + 1; "/ 3"
 
+        'Полоса прокрутки
         PUT (500, 63), grp(0, 0), PSET
+        PUT (500, 271), grp(0, 1), PSET
         FOR i = 79 TO 260 STEP 16
             PUT (500, i), grp(0, 5), PSET
         NEXT
-        PUT (500, 271), grp(0, 1), PSET
-
-        PUT (500, 250 - p * 10), grp(0, 4), PSET
+        PUT (500, 255 - p * 88), grp(0, 4), PSET
 
         DO: LOOP WHILE INKEY$ <> ""
         oldp = p
@@ -580,6 +595,7 @@ SUB Intro
             READ sg(x, y)
         NEXT
     NEXT
+    CLS
 
     'Red Square
     FOR i = 0 TO 7
@@ -634,29 +650,29 @@ SUB Intro
         Delay d
     NEXT
 
-    Delay 2
+    Delay 1.5
 
     'Шторки
     FOR i = 0 TO 175
         LINE (0, i)-(639, i), 0
         LINE (0, 349 - i)-(639, 349 - i), 0
-        Delay .008
+        Delay .005
     NEXT
 
     'Представляет...
     p$ = "П р е д с т а в л я е т"
     LOCATE 13, 29
-    COLOR 6
+    COLOR 2
     PRINT p$
     Delay .2
 
     LOCATE 13, 29
-    COLOR 14
+    COLOR 10
     PRINT p$
     Delay 1.5
 
     LOCATE 13, 29
-    COLOR 6
+    COLOR 2
     PRINT p$
     Delay .2
 
@@ -680,7 +696,7 @@ SUB Intro
     SCREEN 9, 0, 0, 0
 
     'Скролл Надписи вверх
-    FOR y = 152 TO 280 STEP 4
+    FOR y = 152 TO 280 STEP 3
         FOR i = 0 TO 6
             PUT (27 + i * 90, y), grn(0, i), PSET
         NEXT
@@ -777,8 +793,8 @@ FUNCTION Menu
             LINE (140, 22 + kmm * 30)-(185, 45 + kmm * 30), 7, BF
             LINE (453, 22 + kmm * 30)-(498, 45 + kmm * 30), 7, BF
         END IF
-        IF k$ = kup$ THEN kmm = kmm + 1: PlaySound 0
-        IF k$ = kdn$ THEN kmm = kmm - 1: PlaySound 0
+        IF k$ = kup$ THEN kmm = kmm + 1
+        IF k$ = kdn$ THEN kmm = kmm - 1
         IF kmm > 6 THEN kmm = 0
         IF kmm < 0 THEN kmm = 6
         IF k$ = kes$ THEN k$ = ken$: kmm = 0
@@ -917,25 +933,50 @@ SUB Options
         IF k < 0 THEN k = 1
         IF k > 1 THEN k = 0
         IF k$ = klf$ OR k$ = krt$ THEN o(k) = 1 - o(k)
-        IF k$ = ken$ THEN
+        IF k$ = ken$ OR k$ = kes$ THEN
             FirstPlayer = o(0)
             SoundEnable = o(1)
             SaveParams
             k$ = kes$
         END IF
-    LOOP UNTIL k$ = kes$
-    'PCOPY 1, 0
+    LOOP UNTIL k$ = ken$ OR k$ = kes$
 END SUB
 
-SUB PlaySound (i)
-    IF SoundEnable = 0 THEN EXIT SUB
-    SELECT CASE i
-        CASE 0
+SUB PlaySound (n)
+    IF n = 0 THEN
+        IF SoundEnable = 1 THEN
+            i = 1
+            DO
+                SOUND 50, i
+                SOUND 100, i
+                SOUND 200, i
+                i = i / 2
 
-            SOUND 10000, .03
-            SOUND 1000, .03
-            SOUND 100, .03
-    END SELECT
+            LOOP WHILE i > .01
+        ELSE
+            Delay .3
+        END IF
+    END IF
+    IF n = 1 THEN
+        IF SoundEnable = 1 THEN
+            FOR i = 200 TO 50 STEP -50
+                SOUND i * 4, .5
+                SOUND i * 2, .5
+                SOUND i, .5
+            NEXT
+        ELSE
+            Delay .5
+        END IF
+    END IF
+    IF n = 2 THEN
+        IF SoundEnable = 1 THEN
+            FOR i = 50 TO 800 STEP 50
+                SOUND i, .5
+                SOUND i * 2, .5
+                SOUND i * 4, .5
+            NEXT
+        END IF
+    END IF
 END SUB
 
 SUB RedWindow (rows)
@@ -1238,6 +1279,7 @@ SUB Win (w)
         LOCATE 14, 41 - LEN(t$) / 2
         PRINT t$
     END IF
+    PlaySound 2
     DO: LOOP UNTIL INKEY$ = ""
     DO: LOOP UNTIL INKEY$ <> ""
 
