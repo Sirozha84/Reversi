@@ -84,6 +84,7 @@ DATA 1,0,0,0,0,0,1,0,0,0
 DATA 1,1,1,1,0,0,1,1,1,1
 
 Init
+'pl(1) = "Computer": InitGame 0, 1, 8: END
 Intro
 DO
 LOOP UNTIL Menu
@@ -110,9 +111,8 @@ END SUB
 SUB CandidatesCalc (pl)
     FOR x = 0 TO size - 1
         FOR y = 0 TO size - 1
-            IF m(x, y) <> -1 THEN
-                c(x, y) = 0
-            ELSE
+            c(x, y) = 0
+            IF m(x, y) = -1 THEN
                 c = CellCheck(x, y, 0, 1, pl)
                 c = c + CellCheck(x, y, 1, 1, pl)
                 c = c + CellCheck(x, y, 1, 0, pl)
@@ -140,13 +140,18 @@ FUNCTION CellCheck (cx, cy, mx, my, pl)
         x = x + mx
         y = y + my
         IF x < 0 OR y < 0 OR x > size - 1 OR y > size - 1 THEN
+            c = 0
             ex = -1
-        ELSE
-            IF m(x, y) = -1 THEN EXIT FUNCTION
-            IF m(x, y) = pr THEN c = c + 1
-            IF m(x, y) = pl THEN CellCheck = c: EXIT FUNCTION
+        ELSEIF m(x, y) = -1 THEN
+            c = 0
+            ex = -1
+        ELSEIF m(x, y) = pr THEN
+            c = c + 1
+        ELSEIF m(x, y) = pl THEN
+            ex = -1
         END IF
-    LOOP WHILE NOT ex
+    LOOP UNTIL ex
+    CellCheck = c
 END FUNCTION
 
 'Закраска чужих фишек по линии
